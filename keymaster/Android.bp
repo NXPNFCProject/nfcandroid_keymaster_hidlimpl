@@ -12,9 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+//***************************************************************************
+// The original Work has been changed by NXP.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Copyright 2020 NXP
+// *************************************************************************
 
 cc_library {
     name: "libJavacardKeymaster41",
+    vendor_available: true,
     srcs: [
         "4.1/JavacardKeymaster4Device.cpp",
         "4.1/CborConverter.cpp",
@@ -24,6 +42,9 @@ cc_library {
     ],
     local_include_dirs: [
         "include",
+    ],
+    cflags: [
+        "-DUSE_SW_KM4",
     ],
     shared_libs: [
         "liblog",
@@ -41,6 +62,7 @@ cc_library {
         "android.hardware.keymaster@4.0",
         "libjc_transport",
 	"libcrypto",
+        "libkeymaster4",
     ],
 }
 
@@ -61,4 +83,34 @@ cc_library {
         "libbase",
         "liblog",
     ],
+}
+cc_binary {
+    name: "android.hardware.keymaster@4.1-service.javacard",
+    defaults: ["hidl_defaults"],
+    relative_install_path: "hw",
+    vendor: true,
+    init_rc: ["4.1/android.hardware.keymaster@4.1-service.javacard.rc"],
+    vintf_fragments: ["4.1/android.hardware.keymaster@4.1-service.javacard.xml"],
+    srcs: ["4.1/service.cpp"],
+
+    shared_libs: [
+        "android.hardware.keymaster@4.0",
+        "android.hardware.keymaster@4.1",
+        "android.hardware.secure_element@1.0",
+        "libbase",
+        "libcutils",
+        "libhardware",
+        "libhidlbase",
+        "libkeymaster4",
+        "liblog",
+        "libutils",
+        "libcppbor_external",
+        "libJavacardKeymaster41",
+        "libjc_transport",
+	"libsoftkeymasterdevice",
+        "libkeymaster_messages",
+	"libkeymaster_portable",
+	"libcrypto",
+    ],
+
 }
