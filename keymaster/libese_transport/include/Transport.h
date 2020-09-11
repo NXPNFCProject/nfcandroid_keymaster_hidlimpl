@@ -14,9 +14,30 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+/******************************************************************************
+ **
+ ** The original Work has been changed by NXP.
+ **
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
+ **
+ ** http://www.apache.org/licenses/LICENSE-2.0
+ **
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
+ ** limitations under the License.
+ **
+ ** Copyright 2020 NXP
+ **
+ *********************************************************************************/
 #ifndef __SE_TRANSPORT__
 #define __SE_TRANSPORT__
+#include "AppletConnection.h"
 
+namespace nxp {
 namespace se_transport {
 
 /**
@@ -30,7 +51,7 @@ class ITransport {
     /**
      * Opens connection.
      */
-	virtual bool openConnection() = 0;
+    virtual bool openConnection() = 0;
     /**
      * Send data over communication channel and receives data back from the remote end.
      */
@@ -59,7 +80,7 @@ public:
      * Gets the binder instance of ISEService, gets the reader corresponding to secure element, establishes a session
      * and opens a basic channel.
      */
-	bool openConnection() override;
+    bool openConnection() override;
     /**
      * Transmists the data over the opened basic channel and receives the data back.
      */
@@ -73,6 +94,8 @@ public:
      * broken.
      */
     bool isConnected() override;
+private:
+    AppletConnection mAppletConnection;
 
 };
 
@@ -107,5 +130,6 @@ private:
 
 };
 
-}
+} // namespace se_transport
+} // namespace nxp
 #endif /* __SE_TRANSPORT__ */

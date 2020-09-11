@@ -43,9 +43,12 @@ cc_library {
     local_include_dirs: [
         "include",
     ],
-    cflags: [
-        "-DUSE_SW_KM4",
+    export_include_dirs: [
+        "include",
     ],
+    /*cflags: [
+        "-DUSE_SW_KM4",
+    ],*/
     shared_libs: [
         "liblog",
         "libcutils",
@@ -54,18 +57,20 @@ cc_library {
         "libutils",
         "libhardware",
         "libhidlbase",
-	"libsoftkeymasterdevice",
+        "libsoftkeymasterdevice",
         "libkeymaster_messages",
-	"libkeymaster_portable",
+        "libkeymaster_portable",
         "libcppbor_external",
         "android.hardware.keymaster@4.1",
         "android.hardware.keymaster@4.0",
-        "libjc_transport",
-	"libcrypto",
+        //"libjc_transport",
+        "libese_transport",
+        "libcrypto",
         "libkeymaster4",
     ],
 }
 
+/*
 cc_library {
     name: "libjc_transport",
     host_supported: true,
@@ -83,7 +88,9 @@ cc_library {
         "libbase",
         "liblog",
     ],
-}
+}*/
+
+
 cc_binary {
     name: "android.hardware.keymaster@4.1-service.javacard",
     defaults: ["hidl_defaults"],
@@ -96,7 +103,9 @@ cc_binary {
     shared_libs: [
         "android.hardware.keymaster@4.0",
         "android.hardware.keymaster@4.1",
-        "android.hardware.secure_element@1.0",
+        //"android.hardware.secure_element@1.0",
+        //"android.hardware.secure_element@1.1",
+        //"android.hardware.secure_element@1.2",
         "libbase",
         "libcutils",
         "libhardware",
@@ -106,11 +115,12 @@ cc_binary {
         "libutils",
         "libcppbor_external",
         "libJavacardKeymaster41",
-        "libjc_transport",
-	"libsoftkeymasterdevice",
+        //"libjc_transport",
+        "libsoftkeymasterdevice",
         "libkeymaster_messages",
-	"libkeymaster_portable",
-	"libcrypto",
+        "libkeymaster_portable",
+        "libcrypto",
+        "libese_transport"
     ],
 
 }

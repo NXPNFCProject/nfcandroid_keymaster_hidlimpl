@@ -1,0 +1,31 @@
+cc_library {
+    name: "libese_transport",
+    vendor_available: true,
+
+    srcs: [
+        "SocketTransport.cpp",
+        "OmapiTransport.cpp",
+        "AppletConnection.cpp",
+        "TestTransport.cpp"
+    ],
+    export_include_dirs: [
+        "include",
+    ],
+    export_shared_lib_headers: [
+        "android.hardware.secure_element@1.0",
+        "android.hardware.secure_element@1.1",
+        "android.hardware.secure_element@1.2",
+    ],
+    shared_libs: [
+        "libbinder",
+        "android.hardware.secure_element@1.0",
+        "android.hardware.secure_element@1.1",
+        "android.hardware.secure_element@1.2",
+        "libbase",
+        "liblog",
+        "libcutils",
+        "libutils",
+        "libhardware",
+        "libhidlbase"
+    ],
+}
