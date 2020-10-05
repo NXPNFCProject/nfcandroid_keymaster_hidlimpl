@@ -41,13 +41,12 @@
 #include <android-base/stringprintf.h>
 #include <vector>
 #include "AppletConnection.h"
-#include "ese_transport_config.h"
+#include "EseTransportUtils.h"
 
 using ::android::hardware::secure_element::V1_0::SecureElementStatus;
 using ::android::hardware::secure_element::V1_0::LogicalChannelResponse;
 using android::base::StringPrintf;
 
-namespace nxp {
 namespace se_transport {
 class SecureElementCallback : public ISecureElementHalCallback {
  public:
@@ -77,12 +76,13 @@ bool AppletConnection::connectToSEService() {
         LOG(INFO) <<"Already connected";
         return true;
     }
+
     uint8_t retry = 0;
     while (( mSEClient == nullptr ) && retry++ < MAX_GET_SERVICE_RETRY ){ // How long should we try before giving up !
       mSEClient = ISecureElement::tryGetService("eSE1");
 
       if(mSEClient == nullptr){
-        LOG(ERROR) << "failed to get eSE HAL service : retry after 1 sec , retry cnt = " << retry ;
+        LOG(ERROR) << "failed to get eSE HAL service : retry after 1 sec , retry cnt = " << android::hardware::toString(retry) ;
       }else {
         LOG(INFO) << " !!! SuccessFully got Handle to eSE HAL service" ;
         if (mCallback == nullptr) {
@@ -94,15 +94,6 @@ bool AppletConnection::connectToSEService() {
       usleep(ONE_SEC);
     }
     return true;
-}
-// Helper method to print vector content
-std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec) {
-  std::ios_base::fmtflags flags(os.flags());
-  os << "{ ";
-  for (uint8_t c : vec) os <<std::setfill('0')<<std::hex<< std::uppercase << std::setw(2)<<(0xFF & c);
-  os.flags(flags);
-  os << " }";
-  return os;
 }
 
 bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
@@ -185,4 +176,3 @@ bool AppletConnection::isChannelOpen() {
 }
 
 }  // namespace se_transport
-}  // namespace nxp

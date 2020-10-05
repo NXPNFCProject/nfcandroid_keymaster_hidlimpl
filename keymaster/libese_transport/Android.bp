@@ -6,7 +6,7 @@ cc_library {
         "SocketTransport.cpp",
         "OmapiTransport.cpp",
         "AppletConnection.cpp",
-        "TestTransport.cpp"
+        "EseTransportUtils.cpp",
     ],
     export_include_dirs: [
         "include",

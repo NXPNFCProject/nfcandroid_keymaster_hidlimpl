@@ -43,7 +43,6 @@
 #include <hidl/Status.h>
 #include <vector>
 
-namespace nxp {
 namespace se_transport {
 
 using ::android::hardware::hidl_array;
@@ -93,5 +92,4 @@ private:
 };
 
 }  // namespace se_transport
-}  // namespace nxp
 #endif  // __APPLETCONNECTION_H__

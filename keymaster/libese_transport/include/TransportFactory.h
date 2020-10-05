@@ -39,7 +39,6 @@
 
 #include "Transport.h"
 
-namespace nxp {
 namespace se_transport {
 
 /**
@@ -94,5 +93,4 @@ class TransportFactory {
 
 };
 } // namespace se_transport
-} // namespace nxp
 #endif /* __SE_TRANSPORT_FACTORY__ */

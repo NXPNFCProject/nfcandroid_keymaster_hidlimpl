@@ -24,33 +24,32 @@
 #define IPADDR  "10.9.40.24"
 #define MAX_RECV_BUFFER_SIZE 2048
 
-namespace nxp {
 namespace se_transport {
 
 bool SocketTransport::openConnection() {
-	struct sockaddr_in serv_addr;
-	if ((mSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	{
+    struct sockaddr_in serv_addr;
+    if ((mSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
         LOG(ERROR) << "Socket creation failed" << " Error: "<<strerror(errno);
-		return false;
-	}
+        return false;
+    }
 
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
 
-	// Convert IPv4 and IPv6 addresses from text to binary form
-	if(inet_pton(AF_INET, IPADDR, &serv_addr.sin_addr)<=0)
-	{
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if(inet_pton(AF_INET, IPADDR, &serv_addr.sin_addr)<=0)
+    {
         LOG(ERROR) << "Invalid address/ Address not supported.";
         return false;
-	}
+    }
 
-	if (connect(mSocket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-	{
+    if (connect(mSocket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
         close(mSocket);
         LOG(ERROR) << "Connection failed. Error: " << strerror(errno);
         return false;
-	}
+    }
     socketStatus = true;
     return true;
 }
@@ -69,11 +68,11 @@ bool SocketTransport::sendData(const uint8_t* inData, const size_t inLen, std::v
         return false;
     }
 
-	if (0 > send(mSocket, inData, inLen , 0 )) {
+    if (0 > send(mSocket, inData, inLen , 0 )) {
         LOG(ERROR) << "Failed to send data over socket.";
         return false;
     }
-	ssize_t valRead = read( mSocket , buffer, MAX_RECV_BUFFER_SIZE);
+    ssize_t valRead = read( mSocket , buffer, MAX_RECV_BUFFER_SIZE);
     if(0 > valRead) {
         LOG(ERROR) << "Failed to read data from socket.";
     }
@@ -95,4 +94,3 @@ bool SocketTransport::isConnected() {
 }
 
 } // namespace se_transport
-} // namespace nxp

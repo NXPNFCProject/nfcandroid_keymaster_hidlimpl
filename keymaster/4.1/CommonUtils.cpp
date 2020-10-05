@@ -26,6 +26,8 @@
 #include <keymaster/km_openssl/rsa_key.h>
 #include <keymaster/km_openssl/ec_key.h>
 #include <android-base/logging.h>
+#include <vector>
+#include <iomanip>
 
 namespace keymaster {
 namespace V4_1 {
@@ -221,7 +223,14 @@ pubModulus) {
     EVP_PKEY_free(pkey);
     return ErrorCode::OK;
 }
-
+std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec) {
+  std::ios_base::fmtflags flags(os.flags());
+  os << "{ ";
+  for (uint8_t c : vec) os <<std::setfill('0')<<std::hex<< std::uppercase << std::setw(2)<<(0xFF & c);
+  os.flags(flags);
+  os << " }";
+  return os;
+}
 
 }  // namespace javacard
 }  // namespace V4_1

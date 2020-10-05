@@ -37,7 +37,6 @@
 #define __SE_TRANSPORT__
 #include "AppletConnection.h"
 
-namespace nxp {
 namespace se_transport {
 
 /**
@@ -131,5 +130,4 @@ private:
 };
 
 } // namespace se_transport
-} // namespace nxp
 #endif /* __SE_TRANSPORT__ */

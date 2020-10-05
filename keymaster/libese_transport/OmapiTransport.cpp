@@ -40,18 +40,9 @@
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 #include <iomanip>
+#include "EseTransportUtils.h"
 
-namespace nxp {
 namespace se_transport {
-
-std::ostream& operator<<(std::ostream& os, const std::vector<uint8_t>& vec) {
-  std::ios_base::fmtflags flags(os.flags());
-  os << "{ ";
-  for (uint8_t c : vec) os <<std::setfill('0')<<std::hex<< std::uppercase << std::setw(2)<<(0xFF & c);
-  os.flags(flags);
-  os << " }";
-  return os;
-}
 
 bool OmapiTransport::openConnection() {
   LOG(INFO) << __PRETTY_FUNCTION__;
@@ -61,12 +52,12 @@ bool OmapiTransport::openConnection() {
 bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) {
     bool status = false;
     std::vector<uint8_t> cApdu(inData, inData+inLen);
-    LOG(INFO) << __PRETTY_FUNCTION__;
+    LOG(INFO) << __FUNCTION__;
     if (!mAppletConnection.isChannelOpen()) {
        std::vector<uint8_t> selectResponse;
        status = mAppletConnection.openChannelToApplet(selectResponse);
        if(!status) {
-          LOG(ERROR) << " Failed to open Logical Channel , return response " << selectResponse;
+          LOG(ERROR) << " Failed to open Logical Channel ,response " << selectResponse;
           output = selectResponse;
           return false;
        }
@@ -85,4 +76,3 @@ bool OmapiTransport::isConnected() {
     return mAppletConnection.isChannelOpen();
 }
 } // namespace se_transport
-} // namespace nxp

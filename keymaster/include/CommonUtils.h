@@ -22,6 +22,7 @@
 #include <android/hardware/keymaster/4.1/types.h>
 #include <keymaster/serializable.h>
 #include <hardware/keymaster_defs.h>
+#include <vector>
 
 namespace keymaster {
 namespace V4_1 {
@@ -92,6 +93,7 @@ class KmParamSet : public keymaster_key_param_set_t {
         ~KmParamSet() { delete[] params; }
 };
 
+std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec);
 }  // namespace javacard
 }  // namespace V4_1
 }  // namespace keymaster

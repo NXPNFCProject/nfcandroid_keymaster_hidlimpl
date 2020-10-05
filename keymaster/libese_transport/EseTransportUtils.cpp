@@ -1,4 +1,7 @@
- /*
+/*
+ **
+ ** Copyright 2020, NXP.
+ **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
  ** You may obtain a copy of the License at
@@ -14,16 +17,17 @@
  ** Copyright 2020 NXP
  **
  */
-#ifndef __ESE_TRANSPORT_CONFIG__
-#define __ESE_TRANSPORT_CONFIG__
-
-namespace nxp {
+#include "EseTransportUtils.h"
+#include <vector>
+#include <iomanip>
 namespace se_transport {
-
-#define MAX_GET_SERVICE_RETRY 10
-
-#define ONE_SEC  1000*1000*1
-
+ // Helper method to dump vector contents
+std::ostream& operator<<(std::ostream& os, const std::vector<uint8_t>& vec) {
+  std::ios_base::fmtflags flags(os.flags());
+  os << "{ ";
+  for (uint8_t c : vec) os <<std::setfill('0')<<std::hex<< std::uppercase << std::setw(2)<<(0xFF & c);
+  os.flags(flags);
+  os << " }";
+  return os;
+}
 } // namespace se_transport
-} // namespace nxp
-#endif /* __ESE_TRANSPORT_CONFIG__ */

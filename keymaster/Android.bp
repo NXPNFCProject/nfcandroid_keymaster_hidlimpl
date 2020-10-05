@@ -36,7 +36,7 @@ cc_library {
     srcs: [
         "4.1/JavacardKeymaster4Device.cpp",
         "4.1/CborConverter.cpp",
-        "4.1/java_card_soft_keymaster_context.cpp",
+        "4.1/JavacardSoftKeymasterContext.cpp",
         "4.1/JavacardOperationContext.cpp",
         "4.1/CommonUtils.cpp",
     ],
@@ -63,32 +63,11 @@ cc_library {
         "libcppbor_external",
         "android.hardware.keymaster@4.1",
         "android.hardware.keymaster@4.0",
-        //"libjc_transport",
         "libese_transport",
         "libcrypto",
         "libkeymaster4",
     ],
 }
-
-/*
-cc_library {
-    name: "libjc_transport",
-    host_supported: true,
-    vendor_available: true,
-
-    srcs: [
-        "4.1/SocketTransport.cpp",
-        "4.1/OmapiTransport.cpp"
-    ],
-    export_include_dirs: [
-        "include"
-    ],
-    shared_libs: [
-        "libbinder",
-        "libbase",
-        "liblog",
-    ],
-}*/
 
 
 cc_binary {
@@ -103,9 +82,6 @@ cc_binary {
     shared_libs: [
         "android.hardware.keymaster@4.0",
         "android.hardware.keymaster@4.1",
-        //"android.hardware.secure_element@1.0",
-        //"android.hardware.secure_element@1.1",
-        //"android.hardware.secure_element@1.2",
         "libbase",
         "libcutils",
         "libhardware",
@@ -115,7 +91,6 @@ cc_binary {
         "libutils",
         "libcppbor_external",
         "libJavacardKeymaster41",
-        //"libjc_transport",
         "libsoftkeymasterdevice",
         "libkeymaster_messages",
         "libkeymaster_portable",
