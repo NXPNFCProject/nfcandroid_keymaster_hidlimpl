@@ -67,6 +67,7 @@
 #define ROOT_RSA_CERT  "/data/data/certificate_rsa.der"
 /*This property is used to check if javacard is already provisioned or not */
 #define KM_JAVACARD_PROVISIONED_PROPERTY "keymaster.javacard.provisioned"
+const hidl_vec<uint8_t> kStrongBoxAppletAID = { 0xA0, 0x00, 0x00, 0x00, 0x62 };
 
 namespace keymaster {
 namespace V4_1 {
@@ -111,7 +112,7 @@ enum class Instruction {
 static inline std::unique_ptr<se_transport::TransportFactory>& getTransportFactoryInstance() {
     if(pTransportFactory == nullptr) {
         pTransportFactory = std::unique_ptr<se_transport::TransportFactory>(new se_transport::TransportFactory(
-                    android::base::GetBoolProperty("ro.kernel.qemu", false)));
+                    android::base::GetBoolProperty("ro.kernel.qemu", false) , kStrongBoxAppletAID));
         pTransportFactory->openConnection();
     }
     return pTransportFactory;
@@ -341,7 +342,28 @@ ErrorCode constructApduMessage(Instruction& ins, std::vector<uint8_t>& inputData
     apduOut.push_back(static_cast<uint8_t>(ins)); //INS
     apduOut.push_back(static_cast<uint8_t>(APDU_P1)); //P1
     apduOut.push_back(static_cast<uint8_t>(APDU_P2)); //P2
+#ifdef NXP_EXTNS
+    if( 0 <= inputData.size() && USHRT_MAX >= inputData.size()) {
+      //Send Extended length APDU always as response size is not known to HAL
 
+      //case 1: Lc > 0 CLS | INS | P1 | P2 | 00 | 2bytes of Lc | CommandData | 2 bytes of Le all set to 00
+      //case 2: Lc = 0 CLS | INS | P1 | P2 | 3 bytes of Le all set to 00
+      apduOut.push_back(static_cast<uint8_t>(0x00));
+      if(inputData.size() > 0) {
+        apduOut.push_back(static_cast<uint8_t>(inputData.size() >> 8));
+        apduOut.push_back(static_cast<uint8_t>(inputData.size() & 0xFF));
+        //Data
+        apduOut.insert(apduOut.end(), inputData.begin(), inputData.end());
+      }
+      //Expected length of output
+      //Accepting complete length of output everytime
+      apduOut.push_back(static_cast<uint8_t>(0x00));
+      apduOut.push_back(static_cast<uint8_t>(0x00));
+    }
+    else {
+      return (ErrorCode::INSUFFICIENT_BUFFER_SPACE);
+    }
+#else
     if(UCHAR_MAX < inputData.size() && USHRT_MAX >= inputData.size()) {
         //Extended length 3 bytes, starts with 0x00
         apduOut.push_back(static_cast<uint8_t>(0x00));
@@ -362,11 +384,10 @@ ErrorCode constructApduMessage(Instruction& ins, std::vector<uint8_t>& inputData
         }
         //Expected length of output
         apduOut.push_back(static_cast<uint8_t>(0x00));//Accepting complete length of output at a time
-
     } else {
         return (ErrorCode::INSUFFICIENT_BUFFER_SPACE);
     }
-
+#endif
     return (ErrorCode::OK);//success
 }
 
@@ -1463,7 +1484,9 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
             output = tempOut;
         }
     }
-    abort(operationHandle);
+    if(ErrorCode::OK != errorCode) {
+      abort(operationHandle);
+    }
     _hidl_cb(errorCode, outParams, output);
 #endif
     return Void();

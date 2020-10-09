@@ -74,6 +74,8 @@ class ITransport {
 class OmapiTransport : public ITransport {
 
 public:
+    OmapiTransport(const std::vector<uint8_t>& aid) : mAppletConnection(aid){
+    }
 
     /**
      * Gets the binder instance of ISEService, gets the reader corresponding to secure element, establishes a session

@@ -46,9 +46,10 @@ cc_library {
     export_include_dirs: [
         "include",
     ],
-    /*cflags: [
-        "-DUSE_SW_KM4",
-    ],*/
+    cflags: [
+      //"-DUSE_SW_KM4",
+        "-DNXP_EXTNS",
+    ],
     shared_libs: [
         "liblog",
         "libcutils",

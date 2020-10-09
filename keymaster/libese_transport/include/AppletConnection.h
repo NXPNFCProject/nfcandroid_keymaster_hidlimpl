@@ -57,7 +57,8 @@ using ::android::hardware::secure_element::V1_1::ISecureElementHalCallback;
 
 struct AppletConnection {
 public:
-
+    AppletConnection(const std::vector<uint8_t>& aid) : kAppletAID(aid){
+    }
     /**
      * Connects to the secure element HAL service. Returns true if successful, false otherwise.
      */
@@ -87,7 +88,7 @@ public:
 
 private:
     sp<ISecureElement> mSEClient;
-
+    std::vector<uint8_t> kAppletAID;
     int8_t mOpenChannel = -1;
 };
 

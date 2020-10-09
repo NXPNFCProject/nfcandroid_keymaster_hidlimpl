@@ -47,9 +47,9 @@ namespace se_transport {
  */
 class TransportFactory {
     public:
-    TransportFactory(bool isEmulator) {
+    TransportFactory(bool isEmulator, const std::vector<uint8_t>& mAppletAID) {
         if (!isEmulator)
-            mTransport = std::unique_ptr<OmapiTransport>(new OmapiTransport());
+            mTransport = std::unique_ptr<OmapiTransport>(new OmapiTransport(mAppletAID));
         else
             mTransport = std::unique_ptr<SocketTransport>(new SocketTransport());
     }

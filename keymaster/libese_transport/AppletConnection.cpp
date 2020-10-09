@@ -66,9 +66,6 @@ class SecureElementCallback : public ISecureElementHalCallback {
     bool mSEClientState = false;
 };
 
-//const hidl_vec<uint8_t> kLoopbackAppletAID = {0x6C, 0x6F, 0x6F, 0x70, 0x62, 0x61, 0x63, 0x6B, 0x41 };
-const hidl_vec<uint8_t> kStrongBoxAppletAID = { 0xA0, 0x00, 0x00, 0x00, 0x62 };
-
 sp<SecureElementCallback> mCallback = nullptr;
 
 bool AppletConnection::connectToSEService() {
@@ -108,7 +105,7 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
         return false;
     }
 #ifdef USE_LOGICAL_CHANNEL
-    mSEClient->opneLogicalChannel(kStrongBoxAppletAID, 00,
+    mSEClient->opneLogicalChannel(kAppletAID, 00,
         [&](LogicalChannelResponse selectResponse, SecureElementStatus status) {
             if (status == SecureElementStatus::SUCCESS) {
                 resp = selectResponse.selectResponse;
@@ -121,7 +118,7 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
 #else
      SecureElementStatus statusReturned;
      std::vector<uint8_t> response;
-     mSEClient->openBasicChannel(kStrongBoxAppletAID, 0x00,
+     mSEClient->openBasicChannel(kAppletAID, 0x00,
          [&](std::vector<uint8_t> selectResponse,
            SecureElementStatus status) {
          statusReturned = status;
