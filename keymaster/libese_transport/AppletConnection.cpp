@@ -68,6 +68,10 @@ class SecureElementCallback : public ISecureElementHalCallback {
 
 sp<SecureElementCallback> mCallback = nullptr;
 
+//TODO: Need to remove once keymaster supports logical channel
+std::vector<uint8_t> weaverAID = {0xA0, 0x00, 0x00, 0x03,
+                                         0x96, 0x10, 0x10};
+
 bool AppletConnection::connectToSEService() {
     if (mSEClient != nullptr && mCallback->isClientConnected()) {
         LOG(INFO) <<"Already connected";
@@ -104,47 +108,49 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
         LOG(ERROR) << "Not connected to eSE Service";
         return false;
     }
-#ifdef USE_LOGICAL_CHANNEL
-    mSEClient->opneLogicalChannel(kAppletAID, 00,
-        [&](LogicalChannelResponse selectResponse, SecureElementStatus status) {
-            if (status == SecureElementStatus::SUCCESS) {
-                resp = selectResponse.selectResponse;
-                mOpenChannel = selectResponse.channelNumber;
-            }else {
-                ret = false;
-            }
-            LOG(INFO) << "openBasicChannel returned: " << toString(status) << " channelNumber =" <<                                                                            ::android::hardware::toString(selectResponse.channelNumber) << " " << selectResponse.selectResponse;
-        });
-#else
-     SecureElementStatus statusReturned;
-     std::vector<uint8_t> response;
-     mSEClient->openBasicChannel(kAppletAID, 0x00,
-         [&](std::vector<uint8_t> selectResponse,
-           SecureElementStatus status) {
-         statusReturned = status;
-         if (status == SecureElementStatus::SUCCESS) {
-             response.resize(selectResponse.size());
-             for (size_t i = 0; i < selectResponse.size(); i++) {
-                  response[i] = selectResponse[i];
-             }
-         } else {
-            ret = false;
-            //resp = {};
+    //TODO: Need to remove if check and else code once keymaster supports logical channel
+    if(kAppletAID == weaverAID) {
+      mSEClient->openLogicalChannel(kAppletAID, 00,
+          [&](LogicalChannelResponse selectResponse, SecureElementStatus status) {
+          if (status == SecureElementStatus::SUCCESS) {
+          resp = selectResponse.selectResponse;
+          mOpenChannel = selectResponse.channelNumber;
+          }else {
+          ret = false;
           }
-            LOG(INFO) << "openBasicChannel returned: " << toString(status);
-         });
-    mOpenChannel = 0;
-    resp = response;
-#endif
+          LOG(INFO) << "openLogicalChannel returned: " << toString(status) << " channelNumber =" <<                                                                            ::android::hardware::toString(selectResponse.channelNumber) << " " << selectResponse.selectResponse;
+          });
+    } else {
+      SecureElementStatus statusReturned;
+      std::vector<uint8_t> response;
+      mSEClient->openBasicChannel(kAppletAID, 0x00,
+          [&](std::vector<uint8_t> selectResponse,
+            SecureElementStatus status) {
+          statusReturned = status;
+          if (status == SecureElementStatus::SUCCESS) {
+          response.resize(selectResponse.size());
+          for (size_t i = 0; i < selectResponse.size(); i++) {
+          response[i] = selectResponse[i];
+          }
+          } else {
+          ret = false;
+          //resp = {};
+          }
+          LOG(INFO) << "openBasicChannel returned: " << toString(status);
+          });
+      mOpenChannel = 0;
+      resp = response;
+    }
     return ret;
 }
 
 bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<uint8_t>& output){
   hidl_vec<uint8_t> cmd = CommandApdu;
-#ifdef USE_LOGICAL_CHANNEL
-  cmd[0] |= mOpenChannel ;
-  LOG(INFO) << __FUNCTION__ << " on channel number " << ::android::hardware::toString(mOpenChannel);
-#endif
+  //TODO: Need to remove if check once keymaster supports logical channel
+  if(kAppletAID == weaverAID) {
+    cmd[0] |= mOpenChannel ;
+    LOG(INFO) << __FUNCTION__ << " on channel number " << ::android::hardware::toString(mOpenChannel);
+  }
   mSEClient->transmit(cmd, [&](hidl_vec<uint8_t> result) {
       output = result;
       LOG(INFO) << "recieved response size = " << ::android::hardware::toString(result.size()) << " data = " << result;
