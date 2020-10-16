@@ -68,6 +68,18 @@ class SecureElementCallback : public ISecureElementHalCallback {
 
 sp<SecureElementCallback> mCallback = nullptr;
 
+class SEDeathRecipient : public android::hardware::hidl_death_recipient {
+  virtual void serviceDied(uint64_t /*cookie*/, const android::wp<::android::hidl::base::V1_0::IBase>& /*who*/) {
+    LOG(ERROR) << "Secure Element Service died disconnecting SE HAL .....";
+    if(mCallback != nullptr) {
+      LOG(INFO) << "Changing state to disconnect ...";
+      mCallback->onStateChange(false);// Change state to disconnect
+    }
+  }
+};
+
+sp<SEDeathRecipient> mSEDeathRecipient = nullptr;
+
 //TODO: Need to remove once keymaster supports logical channel
 std::vector<uint8_t> weaverAID = {0xA0, 0x00, 0x00, 0x03,
                                          0x96, 0x10, 0x10};
@@ -79,6 +91,7 @@ bool AppletConnection::connectToSEService() {
     }
 
     uint8_t retry = 0;
+    bool status = false;
     while (( mSEClient == nullptr ) && retry++ < MAX_GET_SERVICE_RETRY ){ // How long should we try before giving up !
       mSEClient = ISecureElement::tryGetService("eSE1");
 
@@ -89,24 +102,32 @@ bool AppletConnection::connectToSEService() {
         if (mCallback == nullptr) {
           mCallback = new SecureElementCallback();
         }
+        mSEDeathRecipient = new SEDeathRecipient();
         mSEClient->init_1_1(mCallback);
+        mSEClient->linkToDeath(mSEDeathRecipient, 0/*cookie*/);
+        status = true;
         break;
       }
       usleep(ONE_SEC);
     }
-    return true;
+    return status;
 }
 
 bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
     bool ret = true;
+    if(mCallback == nullptr || !mCallback->isClientConnected()) {
+      // SE HAL crashed in between re-connect
+      mSEClient = nullptr;
+      mOpenChannel = -1;
+      if(!connectToSEService()) {
+        LOG(ERROR) << "Not connected to eSE Service";
+        return false;
+      }
+    }
     if (isChannelOpen()) {
         //close();
         LOG(INFO) << "channel Already opened";
         return true;
-    }
-    if (mSEClient == nullptr || !mCallback->isClientConnected()) {  // Not connected to SE service
-        LOG(ERROR) << "Not connected to eSE Service";
-        return false;
     }
     //TODO: Need to remove if check and else code once keymaster supports logical channel
     if(kAppletAID == weaverAID) {
@@ -175,6 +196,9 @@ bool AppletConnection::close() {
 }
 
 bool AppletConnection::isChannelOpen() {
+    if(mCallback == nullptr || !mCallback->isClientConnected()) {
+      return false;
+    }
     return mOpenChannel >= 0;
 }
 
