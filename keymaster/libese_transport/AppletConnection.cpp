@@ -40,8 +40,10 @@
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 #include <vector>
-#include "AppletConnection.h"
-#include "EseTransportUtils.h"
+#include <mutex>
+
+#include <AppletConnection.h>
+#include <EseTransportUtils.h>
 
 using ::android::hardware::secure_element::V1_0::SecureElementStatus;
 using ::android::hardware::secure_element::V1_0::LogicalChannelResponse;
@@ -79,10 +81,6 @@ class SEDeathRecipient : public android::hardware::hidl_death_recipient {
 };
 
 sp<SEDeathRecipient> mSEDeathRecipient = nullptr;
-
-//TODO: Need to remove once keymaster supports logical channel
-std::vector<uint8_t> weaverAID = {0xA0, 0x00, 0x00, 0x03,
-                                         0x96, 0x10, 0x10};
 
 bool AppletConnection::connectToSEService() {
     if (mSEClient != nullptr && mCallback->isClientConnected()) {
@@ -129,8 +127,6 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
         LOG(INFO) << "channel Already opened";
         return true;
     }
-    //TODO: Need to remove if check and else code once keymaster supports logical channel
-    if(kAppletAID == weaverAID) {
       mSEClient->openLogicalChannel(kAppletAID, 00,
           [&](LogicalChannelResponse selectResponse, SecureElementStatus status) {
           if (status == SecureElementStatus::SUCCESS) {
@@ -141,50 +137,31 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
           }
           LOG(INFO) << "openLogicalChannel returned: " << toString(status) << " channelNumber =" <<                                                                            ::android::hardware::toString(selectResponse.channelNumber) << " " << selectResponse.selectResponse;
           });
-    } else {
-      SecureElementStatus statusReturned;
-      std::vector<uint8_t> response;
-      mSEClient->openBasicChannel(kAppletAID, 0x00,
-          [&](std::vector<uint8_t> selectResponse,
-            SecureElementStatus status) {
-          statusReturned = status;
-          if (status == SecureElementStatus::SUCCESS) {
-          response.resize(selectResponse.size());
-          for (size_t i = 0; i < selectResponse.size(); i++) {
-          response[i] = selectResponse[i];
-          }
-          } else {
-          ret = false;
-          //resp = {};
-          }
-          LOG(INFO) << "openBasicChannel returned: " << toString(status);
-          });
-      mOpenChannel = 0;
-      resp = response;
-    }
     return ret;
 }
 
 bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<uint8_t>& output){
-  hidl_vec<uint8_t> cmd = CommandApdu;
-  //TODO: Need to remove if check once keymaster supports logical channel
-  if(kAppletAID == weaverAID) {
+    hidl_vec<uint8_t> cmd = CommandApdu;
     cmd[0] |= mOpenChannel ;
     LOG(INFO) << __FUNCTION__ << " on channel number " << ::android::hardware::toString(mOpenChannel);
-  }
-  mSEClient->transmit(cmd, [&](hidl_vec<uint8_t> result) {
-      output = result;
-      LOG(INFO) << "recieved response size = " << ::android::hardware::toString(result.size()) << " data = " << result;
-      });
-  return true;
+    mSEClient->transmit(cmd, [&](hidl_vec<uint8_t> result) {
+        output = result;
+        LOG(INFO) << "recieved response size = " << ::android::hardware::toString(result.size()) << " data = " << result;
+    });
+    return true;
 }
 
 bool AppletConnection::close() {
-    if (!isChannelOpen() || mSEClient == nullptr) {
+    LOG(INFO) << __PRETTY_FUNCTION__ << " Enter";
+    std::lock_guard<std::mutex> lock(channel_mutex_);
+    if (mSEClient == nullptr) {
          LOG(ERROR) << "Channel couldn't be closed mSEClient handle is null";
          return false;
     }
-
+    if(mOpenChannel < 0){
+       LOG(INFO) << "Channel is already closed";
+       return true;
+    }
     SecureElementStatus status = mSEClient->closeChannel(mOpenChannel);
     if (status != SecureElementStatus::SUCCESS) {
          LOG(ERROR) << "Channel couldn't be closed: closeChannel call failed";
@@ -196,6 +173,8 @@ bool AppletConnection::close() {
 }
 
 bool AppletConnection::isChannelOpen() {
+    LOG(INFO) << __PRETTY_FUNCTION__ << " Enter";
+    std::lock_guard<std::mutex> lock(channel_mutex_);
     if(mCallback == nullptr || !mCallback->isClientConnected()) {
       return false;
     }

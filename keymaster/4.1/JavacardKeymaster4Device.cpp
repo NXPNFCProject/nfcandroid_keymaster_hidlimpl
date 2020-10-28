@@ -67,6 +67,7 @@
 #define ROOT_RSA_CERT  "/data/data/certificate_rsa.der"
 /*This property is used to check if javacard is already provisioned or not */
 #define KM_JAVACARD_PROVISIONED_PROPERTY "keymaster.javacard.provisioned"
+#define UNUSED(expr) do { (void)(expr); } while (0)
 const hidl_vec<uint8_t> kStrongBoxAppletAID = { 0xA0, 0x00, 0x00, 0x00, 0x62 };
 
 namespace keymaster {
@@ -140,7 +141,7 @@ static inline bool readDataFromFile(const char *filename, std::vector<uint8_t>& 
     fclose(fp);
     return ret;
 }
-
+#ifndef USE_SW_KM4
 static inline bool findTag(const hidl_vec<KeyParameter>& params, Tag tag) {
     size_t size = params.size();
     for(size_t i = 0; i < size; ++i) {
@@ -160,7 +161,7 @@ static inline bool getTag(const hidl_vec<KeyParameter>& params, Tag tag, KeyPara
     }
     return false;
 }
-
+#endif
 static inline X509* parseDerCertificate(const char* filename) {
     X509 *x509 = NULL;
     std::vector<uint8_t> certData;
@@ -552,12 +553,13 @@ ErrorCode JavacardKeymaster4Device::setBootParams(uint32_t osVersion, uint32_t o
         add(static_cast<uint32_t>(deviceLocked));
     std::vector<uint8_t> cborData = array.encode();
 
-    LOG(INFO) << "JavacardKeymaster4Device" <<__FUNCTION__ << __LINE__;
+    LOG(INFO) << "JavacardKeymaster4Device::" <<__FUNCTION__;
     ErrorCode ret = constructApduMessage(ins, cborData, apdu);
     LOG(INFO) << __FUNCTION__ << " constructed command Apdu " << apdu;
     if(ret != ErrorCode::OK) return ret;
 
     if(!getTransportFactoryInstance()->sendData(apdu.data(), apdu.size(), response)) {
+        LOG(ERROR) << __FUNCTION__ << " Failed to send/connect with eSE HAL";
         return (ErrorCode::SECURE_HW_COMMUNICATION_FAILED);
     }
 
@@ -586,13 +588,11 @@ Return<void> JavacardKeymaster4Device::getHardwareInfo(getHardwareInfo_cb _hidl_
     // When socket is not connected return hardware info parameters from HAL itself.
 	//_hidl_cb(SecurityLevel::STRONGBOX, JAVACARD_KEYMASTER_NAME, JAVACARD_KEYMASTER_AUTHOR);
 #ifdef USE_SW_KM4
-    #define JAVACARD_KEYMASTER_NAME "NXP_KEYMASTER"
-    #define JAVACARD_KEYMASTER_AUTHOR  "NXP"
-    LOG(INFO) << "Method JavacardKeymaster4Device::" << __FUNCTION__ << __LINE__;
+    LOG(INFO) << "Method JavacardKeymaster4Device::" << __FUNCTION__ << " using SW implementation";
     _hidl_cb(SecurityLevel::STRONGBOX, JAVACARD_KEYMASTER_NAME, JAVACARD_KEYMASTER_AUTHOR);
     return Void();
 #else
-  LOG(INFO) << "Method JavacardKeymaster4Device::" << __FUNCTION__ << " eSE Transport is enabled";
+  LOG(INFO) << "Method JavacardKeymaster4Device::" << __FUNCTION__ << " using JavaCard Applet";
 	std::vector<uint8_t> resp;
 	std::vector<uint8_t> input;
 	std::unique_ptr<Item> item;
@@ -627,7 +627,11 @@ Return<void> JavacardKeymaster4Device::getHardwareInfo(getHardwareInfo_cb _hidl_
 }
 #define KM_USE_JAVACARD "debug.use_javacard"
 bool useJavaCard(){
+#ifdef USE_SW_KM4
+  return android::base::GetBoolProperty(KM_USE_JAVACARD, false);
+#else
   return android::base::GetBoolProperty(KM_USE_JAVACARD, true);
+#endif
 }
 
 Return<void> JavacardKeymaster4Device::getHmacSharingParameters(getHmacSharingParameters_cb _hidl_cb) {
@@ -667,7 +671,10 @@ Return<void> JavacardKeymaster4Device::getHmacSharingParameters(getHmacSharingPa
             if (item != nullptr) {
                 if(!cborConverter_.getHmacSharingParameters(item, 1, hmacSharingParameters)) {
                     errorCode = ErrorCode::UNKNOWN_ERROR;
+                    LOG(ERROR) << __FUNCTION__ <<  " response parsing failed";
                 }
+            }else {
+               LOG(ERROR) << __FUNCTION__ <<  " did not receive expected response ";
             }
         }
         _hidl_cb(errorCode, hmacSharingParameters);
@@ -695,7 +702,7 @@ Return<void> JavacardKeymaster4Device::computeSharedHmac(const hidl_vec<HmacShar
       LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ <<" EXITING with Fake response ";
       _hidl_cb(ErrorCode::OK, {});
     }
-	retrun Void();
+	return Void();
 #else
       LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ <<" ENTER ";
     cppbor::Array array;
@@ -753,9 +760,12 @@ Return<void> JavacardKeymaster4Device::computeSharedHmac(const hidl_vec<HmacShar
                 std::vector<uint8_t> bstr;
                 if(!cborConverter_.getBinaryArray(item, 1, bstr)) {
                     errorCode = ErrorCode::UNKNOWN_ERROR;
+                    LOG(ERROR) << __FUNCTION__ <<  " Response parsing failed";
                 } else {
                     sharingCheck = bstr;
                 }
+            }else {
+               LOG(ERROR) << __FUNCTION__ <<  " did not receive expected response ";
             }
         }
         _hidl_cb(errorCode, sharingCheck);
@@ -766,36 +776,16 @@ Return<void> JavacardKeymaster4Device::computeSharedHmac(const hidl_vec<HmacShar
 
 Return<void> JavacardKeymaster4Device::verifyAuthorization(uint64_t operationHandle, const hidl_vec<KeyParameter>& parametersToVerify, const HardwareAuthToken& authToken, verifyAuthorization_cb _hidl_cb) {
 #ifdef USE_SW_KM4
-    LOG(INFO) << "softKm4_0_->JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
-    softKm4_0_->verifyAuthorization(operationHandle, parametersToVerify, authToken, _hidl_cb);
+  LOG(INFO) << "softKm4_0_->JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
+  softKm4_0_->verifyAuthorization(operationHandle, parametersToVerify, authToken, _hidl_cb);
 #else
-    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
-    cppbor::Array array;
-    std::unique_ptr<Item> item;
-    std::vector<uint8_t> cborOutData;
-    ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
-    VerificationToken verificationToken;
-
-    /* Convert input data to cbor format */
-    array.add(operationHandle);
-    cborConverter_.addKeyparameters(array, parametersToVerify);
-    cborConverter_.addHardwareAuthToken(array, authToken);
-    std::vector<uint8_t> cborData = array.encode();
-
-    errorCode = sendData(Instruction::INS_VERIFY_AUTHORIZATION_CMD, cborData, cborOutData);
-
-    if((errorCode == ErrorCode::OK) && (cborData.size() > 2)) {
-        //Skip last 2 bytes in cborData, it contains status.
-        std::tie(item, errorCode) = cborConverter_.decodeData(std::vector<uint8_t>(cborOutData.begin(), cborOutData.end()-2),
-                true);
-        if (item != nullptr) {
-            if(!cborConverter_.getVerificationToken(item, 1, verificationToken))
-                errorCode = ErrorCode::UNKNOWN_ERROR;
-        }
-    }
-    _hidl_cb(errorCode, verificationToken);
+  UNUSED(operationHandle);
+  UNUSED(parametersToVerify);
+  UNUSED(authToken);
+  LOG(INFO) << __FUNCTION__  << " NOT IMPLEMENTED";
+  _hidl_cb(ErrorCode::UNIMPLEMENTED, {});
 #endif
-    return Void();
+  return Void();
 }
 
 Return<ErrorCode> JavacardKeymaster4Device::addRngEntropy(const hidl_vec<uint8_t>& data) {
@@ -876,7 +866,7 @@ Return<void> JavacardKeymaster4Device::importKey(const hidl_vec<KeyParameter>& k
 #ifdef USE_SW_KM4
   softKm4_0_->importKey(keyParams, keyFormat, keyData, _hidl_cb);
 #else
-    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
+  LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
 	cppbor::Array array;
 	std::unique_ptr<Item> item;
 	hidl_vec<uint8_t> keyBlob;
@@ -1087,7 +1077,12 @@ Return<void> JavacardKeymaster4Device::attestKey(const hidl_vec<uint8_t>& keyToA
                         certChain[i] = temp[i];
                     }
                 } else {
-                    LOG(ERROR) << "No root certificate found";
+                    //Temporary Fix to avoid vts test crash
+                    LOG(ERROR) << "No root certificate found , returning only Public Key Attestation cert received from Applet";
+                    certChain.resize(temp.size());
+                    for(int i = 0; i < temp.size(); i++) {
+                        certChain[i] = temp[i];
+                    }
                 }
             }
         }
@@ -1198,35 +1193,35 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
 #ifdef USE_SW_KM4
     return softKm4_0_->begin(purpose,keyBlob,inParams, authToken , _hidl_cb);
 #else
-    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
     hidl_vec<KeyParameter> outParams;
     uint64_t operationHandle = 0;
     hidl_vec<KeyParameter> resultParams;
+    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ ;
 
     if(keyBlob.size() == 0) {
-        _hidl_cb(ErrorCode::INVALID_ARGUMENT, resultParams, operationHandle);
-        return Void();
+      _hidl_cb(ErrorCode::INVALID_ARGUMENT, resultParams, operationHandle);
+      return Void();
     }
-
+#ifndef NXP_EXTNS
     if (KeyPurpose::ENCRYPT == purpose || KeyPurpose::VERIFY == purpose) {
-        BeginOperationRequest request;
-        request.purpose = legacy_enum_conversion(purpose);
-        request.SetKeyMaterial(keyBlob.data(), keyBlob.size());
-        request.additional_params.Reinitialize(KmParamSet(inParams));
+      BeginOperationRequest request;
+      request.purpose = legacy_enum_conversion(purpose);
+      request.SetKeyMaterial(keyBlob.data(), keyBlob.size());
+      request.additional_params.Reinitialize(KmParamSet(inParams));
 
-        BeginOperationResponse response;
-        softKm_->BeginOperation(request, &response);
+      BeginOperationResponse response;
+      softKm_->BeginOperation(request, &response);
 
-        if (response.error == KM_ERROR_OK) {
-            resultParams = kmParamSet2Hidl(response.output_params);
-        }
-        if (response.error != KM_ERROR_INCOMPATIBLE_ALGORITHM) { /*Incompatible algorithm could be handled by JavaCard*/
-            _hidl_cb(legacy_enum_conversion(response.error), resultParams, response.op_handle);
-            return Void();
-        }
+      if (response.error == KM_ERROR_OK) {
+        resultParams = kmParamSet2Hidl(response.output_params);
+      }
+      if (response.error != KM_ERROR_INCOMPATIBLE_ALGORITHM) { /*Incompatible algorithm could be handled by JavaCard*/
+        _hidl_cb(legacy_enum_conversion(response.error), resultParams, response.op_handle);
+        return Void();
+      }
     }
-
+#endif
     cppbor::Array array;
     std::vector<uint8_t> cborOutData;
     std::unique_ptr<Item> item;
@@ -1253,6 +1248,7 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
         applicationData = param.blob;
     }
     //Call to getKeyCharacteristics.
+    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " getKeyCharacteristics called";
     getKeyCharacteristics(keyBlob, applicationId, applicationData,
             [&](ErrorCode error, KeyCharacteristics keyChars) {
             errorCode = error;
@@ -1260,6 +1256,7 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
             });
 
     if(errorCode == ErrorCode::OK) {
+    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " getKeyCharacteristics returned OK";
         errorCode = ErrorCode::UNKNOWN_ERROR;
         if(getTag(keyCharacteristics.hardwareEnforced, Tag::ALGORITHM, param)) {
             errorCode = sendData(Instruction::INS_BEGIN_OPERATION_CMD, cborData, cborOutData);
@@ -1275,13 +1272,23 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
                         operationHandle = 0;
                     } else {
                         /* Store the operationInfo */
+                        LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << "returned operationHandle=" << operationHandle;
                         oprCtx_->setOperationInfo(operationHandle, purpose, param.f.algorithm, inParams);
                     }
                 }
+              #ifdef NXP_EXTNS
+                else {
+                    LOG(ERROR) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " did not receive expected response from Applet";
+                    errorCode = ErrorCode::UNKNOWN_ERROR;
+                    outParams.setToExternal(nullptr, 0);
+                    operationHandle = 0;
+                }
+             #endif
             }
         }
     }
     _hidl_cb(errorCode, outParams, operationHandle);
+    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " EXITING";
 #endif
     return Void();
 }
@@ -1290,8 +1297,9 @@ Return<void> JavacardKeymaster4Device::update(uint64_t operationHandle, const hi
 #ifdef USE_SW_KM4
     softKm4_0_->update(operationHandle,inParams,input,authToken,verificationToken,_hidl_cb);
 #else
-    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
+    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " operationHandle=" <<operationHandle << " input size=" << input.size();
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
+
     UpdateOperationRequest request;
     request.op_handle = operationHandle;
     request.input.Reinitialize(input.data(), input.size());
@@ -1309,11 +1317,13 @@ Return<void> JavacardKeymaster4Device::update(uint64_t operationHandle, const hi
         outParams = kmParamSet2Hidl(response.output_params);
         output = kmBuffer2hidlVec(response.output);
     } else if(response.error == KM_ERROR_INVALID_OPERATION_HANDLE) {
+       LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " to Applet";
         std::vector<uint8_t> tempOut;
         /* OperationContext calls this below sendDataCallback callback function. This callback
          * may be called multiple times if the input data is larger than MAX_ALLOWED_INPUT_SIZE.
          */
         auto sendDataCallback = [&](std::vector<uint8_t>& data, bool) -> ErrorCode {
+            LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " OperationContext called sendDataCallback with data.size =" << data.size();
             cppbor::Array array;
             std::unique_ptr<Item> item;
             std::vector<uint8_t> cborOutData;
@@ -1371,6 +1381,7 @@ Return<void> JavacardKeymaster4Device::update(uint64_t operationHandle, const hi
         }
     }
     if(ErrorCode::OK != errorCode) {
+        LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " error , aborting the operation";
         abort(operationHandle);
     }
     _hidl_cb(errorCode, inputConsumed, outParams, output);
@@ -1382,7 +1393,7 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
 #ifdef USE_SW_KM4
   softKm4_0_->finish(operationHandle,inParams,input,signature,authToken,verificationToken,_hidl_cb);
 #else
-    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
+    //LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " first call SoftKM finish " << __LINE__;
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
     FinishOperationRequest request;
     request.op_handle = operationHandle;
@@ -1400,6 +1411,7 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
         outParams = kmParamSet2Hidl(response.output_params);
         output = kmBuffer2hidlVec(response.output);
     } else if (response.error == KM_ERROR_INVALID_OPERATION_HANDLE) {
+        LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " to Applet";
         std::vector<uint8_t> tempOut;
         bool aadTag = false;
         /* OperationContext calls this below sendDataCallback callback function. This callback
@@ -1410,6 +1422,7 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
          * is called.
          */
         auto sendDataCallback = [&](std::vector<uint8_t>& data, bool finish) -> ErrorCode {
+            LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " OperationContext called sendDataCallback with data.size =" << data.size();
             cppbor::Array array;
             Instruction ins;
             std::unique_ptr<Item> item;
@@ -1481,12 +1494,17 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
         };
         if(ErrorCode::OK == (errorCode = oprCtx_->finish(operationHandle, std::vector<uint8_t>(input),
                         sendDataCallback))) {
+            LOG(INFO) << __FUNCTION__ << " returning with ErrorCode::OK ";
             output = tempOut;
+        }else {
+           LOG(INFO) << __FUNCTION__ << " FAILED ******** ";
         }
     }
-    if(ErrorCode::OK != errorCode) {
+#ifdef NXP_EXTNS
+    if(errorCode != ErrorCode::OK) {
       abort(operationHandle);
     }
+#endif
     _hidl_cb(errorCode, outParams, output);
 #endif
     return Void();
@@ -1496,7 +1514,7 @@ Return<ErrorCode> JavacardKeymaster4Device::abort(uint64_t operationHandle) {
 #ifdef USE_SW_KM4
   return softKm4_0_->abort(operationHandle);
 #else
-    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << __LINE__;
+    LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__;
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
     AbortOperationRequest request;
     request.op_handle = operationHandle;

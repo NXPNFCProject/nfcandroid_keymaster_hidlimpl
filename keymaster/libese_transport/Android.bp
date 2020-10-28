@@ -7,6 +7,10 @@ cc_library {
         "OmapiTransport.cpp",
         "AppletConnection.cpp",
         "EseTransportUtils.cpp",
+        "IntervalTimer.cpp",
+    ],
+    cflags: [
+          "-DINTERVAL_TIMER",
     ],
     export_include_dirs: [
         "include",

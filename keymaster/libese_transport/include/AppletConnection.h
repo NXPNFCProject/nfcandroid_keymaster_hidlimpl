@@ -87,6 +87,7 @@ public:
     bool isChannelOpen();
 
 private:
+    std::mutex channel_mutex_; // exclusive access to isChannelopen()/close()
     sp<ISecureElement> mSEClient;
     std::vector<uint8_t> kAppletAID;
     int8_t mOpenChannel = -1;

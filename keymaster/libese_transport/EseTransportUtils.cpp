@@ -17,9 +17,11 @@
  ** Copyright 2020 NXP
  **
  */
-#include "EseTransportUtils.h"
 #include <vector>
 #include <iomanip>
+
+#include <EseTransportUtils.h>
+
 namespace se_transport {
  // Helper method to dump vector contents
 std::ostream& operator<<(std::ostream& os, const std::vector<uint8_t>& vec) {

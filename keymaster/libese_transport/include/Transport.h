@@ -35,7 +35,8 @@
  *********************************************************************************/
 #ifndef __SE_TRANSPORT__
 #define __SE_TRANSPORT__
-#include "AppletConnection.h"
+#include <AppletConnection.h>
+#include <IntervalTimer.h>
 
 namespace se_transport {
 
@@ -97,6 +98,7 @@ public:
     bool isConnected() override;
 private:
     AppletConnection mAppletConnection;
+    IntervalTimer mTimer;
 
 };
 

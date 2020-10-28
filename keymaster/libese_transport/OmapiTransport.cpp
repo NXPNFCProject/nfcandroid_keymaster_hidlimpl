@@ -36,23 +36,35 @@
 #define LOG_TAG "OmapiTransport"
 
 #include <vector>
-#include "Transport.h"
+#include <signal.h>
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 #include <iomanip>
-#include "EseTransportUtils.h"
+
+#include <Transport.h>
+#include <EseTransportUtils.h>
+#include <IntervalTimer.h>
 
 namespace se_transport {
-
+void SessionTimerFunc(union sigval arg){
+     LOG(INFO) << "Session Timer expired !!";
+     OmapiTransport *obj = (OmapiTransport*)arg.sival_ptr;
+     if(obj != nullptr)
+       obj->closeConnection();
+}
 bool OmapiTransport::openConnection() {
-  LOG(INFO) << __PRETTY_FUNCTION__;
-	return mAppletConnection.connectToSEService();
+    LOG(INFO) << __PRETTY_FUNCTION__;
+	  return mAppletConnection.connectToSEService();
 }
 
 bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) {
     bool status = false;
     std::vector<uint8_t> cApdu(inData, inData+inLen);
     LOG(INFO) << __FUNCTION__;
+#ifdef INTERVAL_TIMER
+     LOG(INFO) << "stop the timer";
+     mTimer.kill();
+#endif
     if (!mAppletConnection.isChannelOpen()) {
        std::vector<uint8_t> selectResponse;
        status = mAppletConnection.openChannelToApplet(selectResponse);
@@ -63,6 +75,10 @@ bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::ve
        }
     }
     status = mAppletConnection.transmit(cApdu,output);
+#ifdef INTERVAL_TIMER
+     LOG(INFO) << "Set the timer";
+     mTimer.set(SESSION_TIMEOUT,this, SessionTimerFunc);
+#endif
     return status;
 }
 

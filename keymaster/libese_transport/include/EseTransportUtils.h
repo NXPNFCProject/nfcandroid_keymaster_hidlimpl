@@ -22,7 +22,7 @@ namespace se_transport {
 
 #define MAX_GET_SERVICE_RETRY 10
 #define ONE_SEC  1000*1000*1
-
+#define SESSION_TIMEOUT 30*1000 // 30 secs
 // Helper method to dump vector contents
 std::ostream& operator<<(std::ostream& os, const std::vector<uint8_t>& vec);
 
