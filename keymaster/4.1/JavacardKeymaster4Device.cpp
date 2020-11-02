@@ -1272,16 +1272,13 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
                         operationHandle = 0;
                     } else {
                         /* Store the operationInfo */
-                        LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << "returned operationHandle=" << operationHandle;
+                        LOG(INFO) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " returned operationHandle=" << operationHandle;
                         oprCtx_->setOperationInfo(operationHandle, purpose, param.f.algorithm, inParams);
                     }
                 }
               #ifdef NXP_EXTNS
                 else {
-                    LOG(ERROR) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " did not receive expected response from Applet";
-                    errorCode = ErrorCode::UNKNOWN_ERROR;
-                    outParams.setToExternal(nullptr, 0);
-                    operationHandle = 0;
+                    LOG(ERROR) << "JavacardKeymaster4Device::"<< __FUNCTION__ << " contains only error code ";
                 }
              #endif
             }
