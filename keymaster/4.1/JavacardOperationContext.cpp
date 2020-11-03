@@ -230,6 +230,11 @@ ErrorCode OperationContext::getBlockAlignedData(uint64_t operHandle, uint8_t* in
         blockSize = AES_BLOCK_SIZE;
     } else if(Algorithm::TRIPLE_DES == operationTable[operHandle].info.alg) {
         blockSize = DES_BLOCK_SIZE;
+    } else {
+       #ifdef NXP_EXTNS
+       LOG(ERROR) << "Invalid algorithm ";
+       return ErrorCode::INCOMPATIBLE_ALGORITHM;
+       #endif
     }
 
     if(opr == Operation::Finish) {

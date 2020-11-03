@@ -129,12 +129,26 @@ static inline bool readDataFromFile(const char *filename, std::vector<uint8_t>& 
     }
     fseek(fp, 0L, SEEK_END);
     long int filesize = ftell(fp);
+#ifdef NXP_EXTNS
+    if(filesize < 0) {
+      fclose(fp);
+      return false;
+    }
+#endif
     rewind(fp);
     std::unique_ptr<uint8_t[]> buf(new uint8_t[filesize]);
+#ifdef NXP_EXTNS
+    ssize_t bytesRead = fread(buf.get(), filesize, 1, fp);
+    if(bytesRead == 0){
+        LOG(ERROR) << "No Content in the file: " << filename;
+        ret = false;
+    }
+#else
     if( 0 == fread(buf.get(), filesize, 1, fp)) {
         LOG(ERROR) << "No Content in the file: " << filename;
         ret = false;
     }
+#endif
     if(true == ret) {
         data.insert(data.begin(), buf.get(), buf.get() + filesize);
     }
@@ -344,7 +358,7 @@ ErrorCode constructApduMessage(Instruction& ins, std::vector<uint8_t>& inputData
     apduOut.push_back(static_cast<uint8_t>(APDU_P1)); //P1
     apduOut.push_back(static_cast<uint8_t>(APDU_P2)); //P2
 #ifdef NXP_EXTNS
-    if( 0 <= inputData.size() && USHRT_MAX >= inputData.size()) {
+    if( USHRT_MAX >= inputData.size()) {
       //Send Extended length APDU always as response size is not known to HAL
 
       //case 1: Lc > 0 CLS | INS | P1 | P2 | 00 | 2bytes of Lc | CommandData | 2 bytes of Le all set to 00
