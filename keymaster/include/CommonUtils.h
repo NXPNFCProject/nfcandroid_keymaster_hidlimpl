@@ -24,6 +24,15 @@
 #include <hardware/keymaster_defs.h>
 #include <vector>
 
+static bool debug_jc = true;
+#define LOGD_JC(x) \
+  if(debug_jc) { \
+    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x; \
+  }
+
+#define LOGE_JC(x) \
+    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x;
+
 namespace keymaster {
 namespace V4_1 {
 namespace javacard {

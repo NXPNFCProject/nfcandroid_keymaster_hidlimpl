@@ -57,7 +57,7 @@ class SecureElementCallback : public ISecureElementHalCallback {
         return Void();
     };
     Return<void> onStateChange_1_1(bool state, const hidl_string& reason) override {
-        LOG(INFO) << __FUNCTION__ << " connected =" << (state?"true " : "false " ) << "reason: " << reason;
+        LOGD_OMAPI("connected =" << (state?"true " : "false " ) << "reason: " << reason);
         mSEClientState = state;
         return Void();
     };
@@ -135,7 +135,7 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
           }else {
           ret = false;
           }
-          LOG(INFO) << "openLogicalChannel returned: " << toString(status) << " channelNumber =" <<                                                                            ::android::hardware::toString(selectResponse.channelNumber) << " " << selectResponse.selectResponse;
+          LOG(INFO) << "openLogicalChannel:" << toString(status) << " channelNumber =" <<                                                                            ::android::hardware::toString(selectResponse.channelNumber) << " " << selectResponse.selectResponse;
           });
     return ret;
 }
@@ -143,7 +143,7 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
 bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<uint8_t>& output){
     hidl_vec<uint8_t> cmd = CommandApdu;
     cmd[0] |= mOpenChannel ;
-    LOG(INFO) << __FUNCTION__ << " on channel number " << ::android::hardware::toString(mOpenChannel);
+    LOGD_OMAPI("Channel number " << ::android::hardware::toString(mOpenChannel));
     mSEClient->transmit(cmd, [&](hidl_vec<uint8_t> result) {
         output = result;
         LOG(INFO) << "recieved response size = " << ::android::hardware::toString(result.size()) << " data = " << result;
@@ -152,7 +152,7 @@ bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<
 }
 
 bool AppletConnection::close() {
-    LOG(INFO) << __PRETTY_FUNCTION__ << " Enter";
+    LOGD_OMAPI("Enter");
     std::lock_guard<std::mutex> lock(channel_mutex_);
     if (mSEClient == nullptr) {
          LOG(ERROR) << "Channel couldn't be closed mSEClient handle is null";
@@ -173,7 +173,7 @@ bool AppletConnection::close() {
 }
 
 bool AppletConnection::isChannelOpen() {
-    LOG(INFO) << __PRETTY_FUNCTION__ << " Enter";
+    LOGD_OMAPI("Enter");
     std::lock_guard<std::mutex> lock(channel_mutex_);
     if(mCallback == nullptr || !mCallback->isClientConnected()) {
       return false;

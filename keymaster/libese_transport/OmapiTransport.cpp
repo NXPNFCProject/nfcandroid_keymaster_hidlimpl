@@ -53,16 +53,15 @@ void SessionTimerFunc(union sigval arg){
        obj->closeConnection();
 }
 bool OmapiTransport::openConnection() {
-    LOG(INFO) << __PRETTY_FUNCTION__;
 	  return mAppletConnection.connectToSEService();
 }
 
 bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) {
     bool status = false;
     std::vector<uint8_t> cApdu(inData, inData+inLen);
-    LOG(INFO) << __FUNCTION__;
+    LOGD_OMAPI("Enter");
 #ifdef INTERVAL_TIMER
-     LOG(INFO) << "stop the timer";
+     LOGD_OMAPI("stop the timer");
      mTimer.kill();
 #endif
     if (!mAppletConnection.isChannelOpen()) {
@@ -76,19 +75,17 @@ bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::ve
     }
     status = mAppletConnection.transmit(cApdu,output);
 #ifdef INTERVAL_TIMER
-     LOG(INFO) << "Set the timer";
+     LOGD_OMAPI("Set the timer");
      mTimer.set(SESSION_TIMEOUT,this, SessionTimerFunc);
 #endif
     return status;
 }
 
 bool OmapiTransport::closeConnection() {
-    LOG(INFO) << __PRETTY_FUNCTION__;
     return mAppletConnection.close();
 }
 
 bool OmapiTransport::isConnected() {
-    LOG(INFO) << __PRETTY_FUNCTION__;
     return mAppletConnection.isChannelOpen();
 }
 } // namespace se_transport

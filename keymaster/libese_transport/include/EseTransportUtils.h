@@ -24,6 +24,14 @@ namespace se_transport {
 #define ONE_SEC  1000*1000*1
 #define SESSION_TIMEOUT 30*1000 // 30 secs
 // Helper method to dump vector contents
+static bool debug_omapi = true;
+#define LOGD_OMAPI(x) \
+  if(debug_omapi) { \
+    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x; \
+  }
+
+#define LOGE_OMAPI(x) \
+    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x;
 std::ostream& operator<<(std::ostream& os, const std::vector<uint8_t>& vec);
 
 } // namespace se_transport
