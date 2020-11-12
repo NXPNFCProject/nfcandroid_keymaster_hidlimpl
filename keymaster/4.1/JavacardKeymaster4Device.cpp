@@ -458,7 +458,7 @@ Return<ErrorCode> setBootParams() {
 ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<uint8_t>& response) {
     ErrorCode ret = ErrorCode::UNKNOWN_ERROR;
     std::vector<uint8_t> apdu;
-
+#ifdef NXP_EXTNS
     if(!isBootParamSet) {
         if(ErrorCode::OK != (ret = setBootParams())) {
             LOG(ERROR) << "Failed to set boot params";
@@ -466,7 +466,20 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
         }
         isBootParamSet = true;
     }
+#else
+    if(!android::base::GetBoolProperty(KM_JAVACARD_PROVISIONED_PROPERTY, false)) {
+        if(ErrorCode::OK != (ret = setBootParams())) {
+            LOG(ERROR) << "Failed to set boot params";
+            return ret;
+        }
 
+        if(ErrorCode::OK != (ret = initiateProvision())) {
+            LOG(ERROR) << "Failed to provision the device";
+            return ret;
+        }
+        android::base::SetProperty(KM_JAVACARD_PROVISIONED_PROPERTY, "true");
+    }
+#endif
     ret = constructApduMessage(ins, inData, apdu);
     LOG(INFO) << __FUNCTION__ << " constructed apdu " << apdu;
     if(ret != ErrorCode::OK) return ret;
