@@ -72,12 +72,12 @@ cc_library {
 
 
 cc_binary {
-    name: "android.hardware.keymaster@4.1-service.javacard",
+    name: "android.hardware.keymaster@4.1-javacard.service",
     defaults: ["hidl_defaults"],
     relative_install_path: "hw",
     vendor: true,
-    init_rc: ["4.1/android.hardware.keymaster@4.1-service.javacard.rc"],
-    vintf_fragments: ["4.1/android.hardware.keymaster@4.1-service.javacard.xml"],
+    init_rc: ["4.1/android.hardware.keymaster@4.1-javacard.service.rc"],
+    vintf_fragments: ["4.1/android.hardware.keymaster@4.1-javacard.service.xml"],
     srcs: ["4.1/service.cpp"],
 
     shared_libs: [
