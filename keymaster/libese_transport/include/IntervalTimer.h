@@ -22,16 +22,16 @@
 #include <time.h>
 
 class IntervalTimer {
- public:
-  typedef void (*TIMER_FUNC)(union sigval);
-  IntervalTimer();
-  ~IntervalTimer();
-  bool set(int ms,void *ptr, TIMER_FUNC cb);
-  void kill();
-  bool create(void *ptr , TIMER_FUNC);
+  public:
+    typedef void (*TIMER_FUNC)(union sigval);
+    IntervalTimer();
+    ~IntervalTimer();
+    bool set(int ms, void* ptr, TIMER_FUNC cb);
+    void kill();
+    bool create(void* ptr, TIMER_FUNC);
 
- private:
-  timer_t mTimerId;
-  TIMER_FUNC mCb;
+  private:
+    timer_t mTimerId;
+    TIMER_FUNC mCb;
 };
-#endif // __INTERVALTIMER_H__
+#endif  // __INTERVALTIMER_H__

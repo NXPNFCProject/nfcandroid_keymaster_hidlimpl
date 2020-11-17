@@ -33,15 +33,16 @@
  ** Copyright 2020 NXP
  *************************************************************************/
 
+#include <JavacardKeymaster4Device.h>
 #include <android-base/logging.h>
 #include <android/hardware/keymaster/4.1/IKeymasterDevice.h>
 #include <hidl/HidlTransportSupport.h>
-#include <JavacardKeymaster4Device.h>
 
 int main() {
     ::android::hardware::configureRpcThreadpool(1, true);
 
-    auto keymaster = new ::keymaster::V4_1::javacard::JavacardKeymaster4Device(SecurityLevel::SOFTWARE);
+    auto keymaster =
+            new ::keymaster::V4_1::javacard::JavacardKeymaster4Device(SecurityLevel::SOFTWARE);
 
     LOG(INFO) << "Register service for StrongBox JavacardKeymaster 4.1 ";
     auto status = keymaster->registerAsService("javacard");

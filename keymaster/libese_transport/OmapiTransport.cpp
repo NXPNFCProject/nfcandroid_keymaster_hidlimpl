@@ -35,48 +35,48 @@
  *********************************************************************************/
 #define LOG_TAG "OmapiTransport"
 
-#include <vector>
-#include <signal.h>
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
+#include <signal.h>
 #include <iomanip>
+#include <vector>
 
-#include <Transport.h>
 #include <EseTransportUtils.h>
 #include <IntervalTimer.h>
+#include <Transport.h>
 
 namespace se_transport {
-void SessionTimerFunc(union sigval arg){
-     LOG(INFO) << "Session Timer expired !!";
-     OmapiTransport *obj = (OmapiTransport*)arg.sival_ptr;
-     if(obj != nullptr)
-       obj->closeConnection();
+void SessionTimerFunc(union sigval arg) {
+    LOG(INFO) << "Session Timer expired !!";
+    OmapiTransport* obj = (OmapiTransport*)arg.sival_ptr;
+    if (obj != nullptr) obj->closeConnection();
 }
 bool OmapiTransport::openConnection() {
-	  return mAppletConnection.connectToSEService();
+    return mAppletConnection.connectToSEService();
 }
 
-bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) {
+bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen,
+                              std::vector<uint8_t>& output) {
     bool status = false;
-    std::vector<uint8_t> cApdu(inData, inData+inLen);
+    std::vector<uint8_t> cApdu(inData, inData + inLen);
     LOGD_OMAPI("Enter");
 #ifdef INTERVAL_TIMER
-     LOGD_OMAPI("stop the timer");
-     mTimer.kill();
+    LOGD_OMAPI("stop the timer");
+    mTimer.kill();
 #endif
     if (!mAppletConnection.isChannelOpen()) {
-       std::vector<uint8_t> selectResponse;
-       status = mAppletConnection.openChannelToApplet(selectResponse);
-       if(!status) {
-          LOG(ERROR) << " Failed to open Logical Channel ,response " << selectResponse;
-          output = selectResponse;
-          return false;
-       }
+        std::vector<uint8_t> selectResponse;
+        status = mAppletConnection.openChannelToApplet(selectResponse);
+        if (!status) {
+            LOG(ERROR) << " Failed to open Logical Channel ,response " << selectResponse;
+            output = selectResponse;
+            return false;
+        }
     }
-    status = mAppletConnection.transmit(cApdu,output);
+    status = mAppletConnection.transmit(cApdu, output);
 #ifdef INTERVAL_TIMER
-     LOGD_OMAPI("Set the timer");
-     mTimer.set(SESSION_TIMEOUT,this, SessionTimerFunc);
+    LOGD_OMAPI("Set the timer");
+    mTimer.set(SESSION_TIMEOUT, this, SessionTimerFunc);
 #endif
     return status;
 }
@@ -88,4 +88,4 @@ bool OmapiTransport::closeConnection() {
 bool OmapiTransport::isConnected() {
     return mAppletConnection.isChannelOpen();
 }
-} // namespace se_transport
+}  // namespace se_transport

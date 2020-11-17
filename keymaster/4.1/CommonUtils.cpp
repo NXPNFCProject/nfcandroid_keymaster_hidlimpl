@@ -35,18 +35,18 @@
  **********************************************************************************/
 
 #include <CommonUtils.h>
-#include <openssl/evp.h>
-#include <openssl/rsa.h>
-#include <openssl/ec.h>
-#include <openssl/bn.h>
-#include <openssl/nid.h>
+#include <android-base/logging.h>
+#include <keymaster/km_openssl/ec_key.h>
 #include <keymaster/km_openssl/openssl_err.h>
 #include <keymaster/km_openssl/openssl_utils.h>
 #include <keymaster/km_openssl/rsa_key.h>
-#include <keymaster/km_openssl/ec_key.h>
-#include <android-base/logging.h>
-#include <vector>
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/evp.h>
+#include <openssl/nid.h>
+#include <openssl/rsa.h>
 #include <iomanip>
+#include <vector>
 
 namespace keymaster {
 namespace V4_1 {
@@ -54,8 +54,7 @@ namespace javacard {
 
 hidl_vec<KeyParameter> kmParamSet2Hidl(const keymaster_key_param_set_t& set) {
     hidl_vec<KeyParameter> result;
-    if (set.length == 0 || set.params == nullptr)
-        return result;
+    if (set.length == 0 || set.params == nullptr) return result;
 
     result.resize(set.length);
     keymaster_key_param_t* params = set.params;
@@ -63,34 +62,34 @@ hidl_vec<KeyParameter> kmParamSet2Hidl(const keymaster_key_param_set_t& set) {
         auto tag = params[i].tag;
         result[i].tag = legacy_enum_conversion(tag);
         switch (typeFromTag(tag)) {
-        case KM_ENUM:
-        case KM_ENUM_REP:
-            result[i].f.integer = params[i].enumerated;
-            break;
-        case KM_UINT:
-        case KM_UINT_REP:
-            result[i].f.integer = params[i].integer;
-            break;
-        case KM_ULONG:
-        case KM_ULONG_REP:
-            result[i].f.longInteger = params[i].long_integer;
-            break;
-        case KM_DATE:
-            result[i].f.dateTime = params[i].date_time;
-            break;
-        case KM_BOOL:
-            result[i].f.boolValue = params[i].boolean;
-            break;
-        case KM_BIGNUM:
-        case KM_BYTES:
-            result[i].blob.setToExternal(const_cast<unsigned char*>(params[i].blob.data),
-                                         params[i].blob.data_length);
-            break;
-        case KM_INVALID:
-        default:
-            params[i].tag = KM_TAG_INVALID;
-            /* just skip */
-            break;
+            case KM_ENUM:
+            case KM_ENUM_REP:
+                result[i].f.integer = params[i].enumerated;
+                break;
+            case KM_UINT:
+            case KM_UINT_REP:
+                result[i].f.integer = params[i].integer;
+                break;
+            case KM_ULONG:
+            case KM_ULONG_REP:
+                result[i].f.longInteger = params[i].long_integer;
+                break;
+            case KM_DATE:
+                result[i].f.dateTime = params[i].date_time;
+                break;
+            case KM_BOOL:
+                result[i].f.boolValue = params[i].boolean;
+                break;
+            case KM_BIGNUM:
+            case KM_BYTES:
+                result[i].blob.setToExternal(const_cast<unsigned char*>(params[i].blob.data),
+                                             params[i].blob.data_length);
+                break;
+            case KM_INVALID:
+            default:
+                params[i].tag = KM_TAG_INVALID;
+                /* just skip */
+                break;
         }
     }
     return result;
@@ -129,7 +128,7 @@ keymaster_key_param_set_t hidlKeyParams2Km(const hidl_vec<KeyParameter>& keyPara
             case KM_BIGNUM:
             case KM_BYTES:
                 set.params[i] =
-                    keymaster_param_blob(tag, &keyParams[i].blob[0], keyParams[i].blob.size());
+                        keymaster_param_blob(tag, &keyParams[i].blob[0], keyParams[i].blob.size());
                 break;
             case KM_INVALID:
             default:
@@ -142,9 +141,9 @@ keymaster_key_param_set_t hidlKeyParams2Km(const hidl_vec<KeyParameter>& keyPara
     return set;
 }
 
-ErrorCode getEcCurve(const EC_GROUP *group, EcCurve& ecCurve) {
+ErrorCode getEcCurve(const EC_GROUP* group, EcCurve& ecCurve) {
     int curve = EC_GROUP_get_curve_name(group);
-    switch(curve) {
+    switch (curve) {
         case NID_secp224r1:
             ecCurve = EcCurve::P_224;
             break;
@@ -163,68 +162,66 @@ ErrorCode getEcCurve(const EC_GROUP *group, EcCurve& ecCurve) {
     return ErrorCode::OK;
 }
 
-ErrorCode ecRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob, std::vector<uint8_t>& secret, std::vector<uint8_t>&
-publicKey, EcCurve& ecCurve) {
+ErrorCode ecRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob, std::vector<uint8_t>& secret,
+                            std::vector<uint8_t>& publicKey, EcCurve& ecCurve) {
     ErrorCode errorCode = ErrorCode::INVALID_KEY_BLOB;
-    EVP_PKEY *pkey = nullptr;
-    const uint8_t *data = pkcs8Blob.data();
+    EVP_PKEY* pkey = nullptr;
+    const uint8_t* data = pkcs8Blob.data();
 
     d2i_PrivateKey(EVP_PKEY_EC, &pkey, &data, pkcs8Blob.size());
-    if(!pkey) {
+    if (!pkey) {
         return legacy_enum_conversion(TranslateLastOpenSslError());
     }
 
     UniquePtr<EC_KEY, EC_KEY_Delete> ec_key(EVP_PKEY_get1_EC_KEY(pkey));
-    if(!ec_key.get())
-        return legacy_enum_conversion(TranslateLastOpenSslError());
+    if (!ec_key.get()) return legacy_enum_conversion(TranslateLastOpenSslError());
 
-    //Get EC Group
-    const EC_GROUP *group = EC_KEY_get0_group(ec_key.get());
-    if(group == NULL)
-        return errorCode;
+    // Get EC Group
+    const EC_GROUP* group = EC_KEY_get0_group(ec_key.get());
+    if (group == NULL) return errorCode;
 
-    if(ErrorCode::OK != (errorCode = getEcCurve(group, ecCurve))) {
+    if (ErrorCode::OK != (errorCode = getEcCurve(group, ecCurve))) {
         return errorCode;
     }
 
-    //Extract private key.
-    const BIGNUM *privBn = EC_KEY_get0_private_key(ec_key.get());
+    // Extract private key.
+    const BIGNUM* privBn = EC_KEY_get0_private_key(ec_key.get());
     int privKeyLen = BN_num_bytes(privBn);
     std::unique_ptr<uint8_t[]> privKey(new uint8_t[privKeyLen]);
     BN_bn2bin(privBn, privKey.get());
-    secret.insert(secret.begin(), privKey.get(), privKey.get()+privKeyLen);
+    secret.insert(secret.begin(), privKey.get(), privKey.get() + privKeyLen);
 
-    //Extract public key.
-    const EC_POINT *point = EC_KEY_get0_public_key(ec_key.get());
-    int pubKeyLen=0;
+    // Extract public key.
+    const EC_POINT* point = EC_KEY_get0_public_key(ec_key.get());
+    int pubKeyLen = 0;
     pubKeyLen = EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, NULL);
     std::unique_ptr<uint8_t[]> pubKey(new uint8_t[pubKeyLen]);
     EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED, pubKey.get(), pubKeyLen, NULL);
-    publicKey.insert(publicKey.begin(), pubKey.get(), pubKey.get()+pubKeyLen);
+    publicKey.insert(publicKey.begin(), pubKey.get(), pubKey.get() + pubKeyLen);
 
     EVP_PKEY_free(pkey);
     return ErrorCode::OK;
 }
 
-ErrorCode rsaRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob, std::vector<uint8_t>& privateExp, std::vector<uint8_t>&
-pubModulus) {
+ErrorCode rsaRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob,
+                             std::vector<uint8_t>& privateExp, std::vector<uint8_t>& pubModulus) {
     ErrorCode errorCode = ErrorCode::INVALID_KEY_BLOB;
-    const BIGNUM *n=NULL, *e=NULL, *d=NULL;
-    EVP_PKEY *pkey = nullptr;
-    const uint8_t *data = pkcs8Blob.data();
+    const BIGNUM *n = NULL, *e = NULL, *d = NULL;
+    EVP_PKEY* pkey = nullptr;
+    const uint8_t* data = pkcs8Blob.data();
 
     d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &data, pkcs8Blob.size());
-    if(!pkey) {
+    if (!pkey) {
         return legacy_enum_conversion(TranslateLastOpenSslError());
     }
 
     UniquePtr<RSA, RsaKey::RSA_Delete> rsa_key(EVP_PKEY_get1_RSA(pkey));
-    if(!rsa_key.get()) {
+    if (!rsa_key.get()) {
         return legacy_enum_conversion(TranslateLastOpenSslError());
     }
 
     RSA_get0_key(rsa_key.get(), &n, &e, &d);
-    if(d != NULL && n != NULL) {
+    if (d != NULL && n != NULL) {
         /*private exponent */
         int privExpLen = BN_num_bytes(d);
         std::unique_ptr<uint8_t[]> privExp(new uint8_t[privExpLen]);
@@ -234,8 +231,8 @@ pubModulus) {
         std::unique_ptr<uint8_t[]> pubMod(new uint8_t[pubModLen]);
         BN_bn2bin(n, pubMod.get());
 
-        privateExp.insert(privateExp.begin(), privExp.get(), privExp.get()+privExpLen);
-        pubModulus.insert(pubModulus.begin(), pubMod.get(), pubMod.get()+pubModLen);
+        privateExp.insert(privateExp.begin(), privExp.get(), privExp.get() + privExpLen);
+        pubModulus.insert(pubModulus.begin(), pubMod.get(), pubMod.get() + pubModLen);
     } else {
         return errorCode;
     }
@@ -244,12 +241,13 @@ pubModulus) {
 }
 #ifdef NXP_EXTNS
 std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec) {
-  std::ios_base::fmtflags flags(os.flags());
-  os << "{ ";
-  for (uint8_t c : vec) os <<std::setfill('0')<<std::hex<< std::uppercase << std::setw(2)<<(0xFF & c);
-  os.flags(flags);
-  os << " }";
-  return os;
+    std::ios_base::fmtflags flags(os.flags());
+    os << "{ ";
+    for (uint8_t c : vec)
+        os << std::setfill('0') << std::hex << std::uppercase << std::setw(2) << (0xFF & c);
+    os.flags(flags);
+    os << " }";
+    return os;
 }
 #endif
 

@@ -41,12 +41,12 @@
 namespace se_transport {
 
 /**
- * ITransport is an abstract interface with a set of virtual methods that allow communication between the keymaster
- * HAL and the secure element.
+ * ITransport is an abstract interface with a set of virtual methods that allow communication
+ * between the keymaster HAL and the secure element.
  */
 class ITransport {
-    public:
-    virtual ~ITransport(){}
+  public:
+    virtual ~ITransport() {}
 
     /**
      * Opens connection.
@@ -55,32 +55,31 @@ class ITransport {
     /**
      * Send data over communication channel and receives data back from the remote end.
      */
-    virtual bool sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) = 0;
+    virtual bool sendData(const uint8_t* inData, const size_t inLen,
+                          std::vector<uint8_t>& output) = 0;
     /**
      * Closes the connection.
      */
     virtual bool closeConnection() = 0;
     /**
-     * Returns the state of the connection status. Returns true if the connection is active, false if connection is
-     * broken.
+     * Returns the state of the connection status. Returns true if the connection is active, false
+     * if connection is broken.
      */
     virtual bool isConnected() = 0;
-
 };
 
 /**
- * OmapiTransport is derived from ITransport. This class gets the OMAPI service binder instance and uses IPC to
- * communicate with OMAPI service. OMAPI inturn communicates with hardware via ISecureElement.
+ * OmapiTransport is derived from ITransport. This class gets the OMAPI service binder instance and
+ * uses IPC to communicate with OMAPI service. OMAPI inturn communicates with hardware via
+ * ISecureElement.
  */
 class OmapiTransport : public ITransport {
-
-public:
-    OmapiTransport(const std::vector<uint8_t>& aid) : mAppletConnection(aid){
-    }
+  public:
+    OmapiTransport(const std::vector<uint8_t>& aid) : mAppletConnection(aid) {}
 
     /**
-     * Gets the binder instance of ISEService, gets the reader corresponding to secure element, establishes a session
-     * and opens a basic channel.
+     * Gets the binder instance of ISEService, gets the reader corresponding to secure element,
+     * establishes a session and opens a basic channel.
      */
     bool openConnection() override;
     /**
@@ -92,25 +91,23 @@ public:
      */
     bool closeConnection() override;
     /**
-     * Returns the state of the connection status. Returns true if the connection is active, false if connection is
-     * broken.
+     * Returns the state of the connection status. Returns true if the connection is active, false
+     * if connection is broken.
      */
     bool isConnected() override;
-private:
+
+  private:
     AppletConnection mAppletConnection;
     IntervalTimer mTimer;
-
 };
 
 class SocketTransport : public ITransport {
-
-public:
-    SocketTransport() : socketStatus(false) {
-    }
+  public:
+    SocketTransport() : socketStatus(false) {}
     /**
      * Creates a socket instance and connects to the provided server IP and port.
      */
-	bool openConnection() override;
+    bool openConnection() override;
     /**
      * Sends data over socket and receives data back.
      */
@@ -120,18 +117,18 @@ public:
      */
     bool closeConnection() override;
     /**
-     * Returns the state of the connection status. Returns true if the connection is active, false if connection is
-     * broken.
+     * Returns the state of the connection status. Returns true if the connection is active, false
+     * if connection is broken.
      */
     bool isConnected() override;
-private:
+
+  private:
     /**
      * Socket instance.
      */
     int mSocket;
     bool socketStatus;
-
 };
 
-} // namespace se_transport
+}  // namespace se_transport
 #endif /* __SE_TRANSPORT__ */
