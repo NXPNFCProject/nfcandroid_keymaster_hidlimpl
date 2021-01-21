@@ -15,35 +15,34 @@
  ** limitations under the License.
  */
 
+
 #ifndef KEYMASTER_V4_1_JAVACARD_COMMONUTILS_H_
 #define KEYMASTER_V4_1_JAVACARD_COMMONUTILS_H_
 
 #include <android/hardware/keymaster/4.1/types.h>
-#include <hardware/keymaster_defs.h>
 #include <keymaster/serializable.h>
+#include <hardware/keymaster_defs.h>
 #include <vector>
 
 static bool debug_jc = true;
-#define LOGD_JC(x)                              \
-    if (debug_jc) {                             \
-        LOG(INFO) << "(" << __FUNCTION__ << ")" \
-                  << " " << x;                  \
-    }
+#define LOGD_JC(x) \
+  if(debug_jc) { \
+    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x; \
+  }
 
-#define LOGE_JC(x)                          \
-    LOG(INFO) << "(" << __FUNCTION__ << ")" \
-              << " " << x;
+#define LOGE_JC(x) \
+    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x;
 
 namespace keymaster {
 namespace V4_1 {
 namespace javacard {
 using ::android::hardware::hidl_vec;
-using ::android::hardware::keymaster::V4_0::EcCurve;
 using ::android::hardware::keymaster::V4_0::ErrorCode;
+using ::android::hardware::keymaster::V4_0::Tag;
 using ::android::hardware::keymaster::V4_0::KeyFormat;
 using ::android::hardware::keymaster::V4_0::KeyParameter;
 using ::android::hardware::keymaster::V4_0::KeyPurpose;
-using ::android::hardware::keymaster::V4_0::Tag;
+using ::android::hardware::keymaster::V4_0::EcCurve;
 
 inline ErrorCode legacy_enum_conversion(const keymaster_error_t value) {
     return static_cast<ErrorCode>(value);
@@ -75,8 +74,8 @@ inline hidl_vec<uint8_t> kmBuffer2hidlVec(const ::keymaster::Buffer& buf) {
     return result;
 }
 
-inline void blob2Vec(const uint8_t* from, size_t size, std::vector<uint8_t>& to) {
-    for (int i = 0; i < size; ++i) {
+inline void blob2Vec(const uint8_t *from, size_t size, std::vector<uint8_t>& to) {
+    for(int i = 0; i < size; ++i) {
         to.push_back(from[i]);
     }
 }
@@ -91,26 +90,26 @@ keymaster_key_param_set_t hidlKeyParams2Km(const hidl_vec<KeyParameter>& keyPara
 
 hidl_vec<KeyParameter> kmParamSet2Hidl(const keymaster_key_param_set_t& set);
 
-ErrorCode rsaRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob,
-                             std::vector<uint8_t>& privateExp, std::vector<uint8_t>& pubModulus);
+ErrorCode rsaRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob, std::vector<uint8_t>& privateExp, std::vector<uint8_t>&
+pubModulus);
 
-ErrorCode ecRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob, std::vector<uint8_t>& secret,
-                            std::vector<uint8_t>& publicKey, EcCurve& eccurve);
+ErrorCode ecRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob, std::vector<uint8_t>& secret, std::vector<uint8_t>&
+publicKey, EcCurve& eccurve);
 
 class KmParamSet : public keymaster_key_param_set_t {
-  public:
-    explicit KmParamSet(const hidl_vec<KeyParameter>& keyParams)
-        : keymaster_key_param_set_t(hidlKeyParams2Km(keyParams)) {}
-    KmParamSet(KmParamSet&& other) : keymaster_key_param_set_t{other.params, other.length} {
-        other.length = 0;
-        other.params = nullptr;
-    }
-    KmParamSet(const KmParamSet&) = delete;
-    ~KmParamSet() { delete[] params; }
+    public:
+        explicit KmParamSet(const hidl_vec<KeyParameter>& keyParams)
+            : keymaster_key_param_set_t(hidlKeyParams2Km(keyParams)) {}
+        KmParamSet(KmParamSet&& other) : keymaster_key_param_set_t{other.params, other.length} {
+            other.length = 0;
+            other.params = nullptr;
+        }
+        KmParamSet(const KmParamSet&) = delete;
+        ~KmParamSet() { delete[] params; }
 };
 
 std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec);
 }  // namespace javacard
 }  // namespace V4_1
 }  // namespace keymaster
-#endif  // KEYMASTER_V4_1_JAVACARD_COMMONUTILS_H_
+#endif //KEYMASTER_V4_1_JAVACARD_COMMONUTILS_H_

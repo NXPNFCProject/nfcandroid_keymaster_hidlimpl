@@ -36,28 +36,29 @@
 #ifndef __APPLETCONNECTION_H__
 #define __APPLETCONNECTION_H__
 
-#include <android/hardware/secure_element/1.0/types.h>
-#include <android/hardware/secure_element/1.1/ISecureElementHalCallback.h>
 #include <android/hardware/secure_element/1.2/ISecureElement.h>
+#include <android/hardware/secure_element/1.1/ISecureElementHalCallback.h>
+#include <android/hardware/secure_element/1.0/types.h>
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
 #include <vector>
 
 namespace se_transport {
 
-using ::android::sp;
 using ::android::hardware::hidl_array;
 using ::android::hardware::hidl_memory;
 using ::android::hardware::hidl_string;
 using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
-using ::android::hardware::secure_element::V1_1::ISecureElementHalCallback;
+using ::android::sp;
 using ::android::hardware::secure_element::V1_2::ISecureElement;
+using ::android::hardware::secure_element::V1_1::ISecureElementHalCallback;
 
 struct AppletConnection {
-  public:
-    AppletConnection(const std::vector<uint8_t>& aid) : kAppletAID(aid) {}
+public:
+    AppletConnection(const std::vector<uint8_t>& aid) : kAppletAID(aid){
+    }
     /**
      * Connects to the secure element HAL service. Returns true if successful, false otherwise.
      */
@@ -78,15 +79,15 @@ struct AppletConnection {
      * Sends the data to the secure element and also receives back the data.
      * This is a blocking call.
      */
-    bool transmit(std::vector<uint8_t>& CommandApdu, std::vector<uint8_t>& output);
+	  bool transmit(std::vector<uint8_t>& CommandApdu , std::vector<uint8_t>& output);
 
     /**
      * Checks if a chennel to the applet is open.
      */
     bool isChannelOpen();
 
-  private:
-    std::mutex channel_mutex_;  // exclusive access to isChannelopen()/close()
+private:
+    std::mutex channel_mutex_; // exclusive access to isChannelopen()/close()
     sp<ISecureElement> mSEClient;
     std::vector<uint8_t> kAppletAID;
     int8_t mOpenChannel = -1;

@@ -30,19 +30,20 @@ class Key;
  * SoftKeymasterContext provides the context for a non-secure implementation of AndroidKeymaster.
  */
 class JavaCardSoftKeymasterContext : public keymaster::PureSoftKeymasterContext {
-    keymaster_error_t LoadKey(const keymaster_algorithm_t algorithm,
-                              KeymasterKeyBlob&& key_material, AuthorizationSet&& hw_enforced,
-                              AuthorizationSet&& sw_enforced, UniquePtr<Key>* key) const;
-
+    keymaster_error_t LoadKey(const keymaster_algorithm_t algorithm, KeymasterKeyBlob&& key_material,
+                                                AuthorizationSet&& hw_enforced,
+                                                AuthorizationSet&& sw_enforced,
+                                                UniquePtr<Key>* key) const;
   public:
     // Security level must only be used for testing.
     explicit JavaCardSoftKeymasterContext(
-            keymaster_security_level_t security_level = KM_SECURITY_LEVEL_SOFTWARE);
+        keymaster_security_level_t security_level = KM_SECURITY_LEVEL_SOFTWARE);
     ~JavaCardSoftKeymasterContext() override;
 
     keymaster_error_t ParseKeyBlob(const KeymasterKeyBlob& blob,
                                    const AuthorizationSet& additional_params,
                                    UniquePtr<Key>* key) const override;
+
 };
 
 }  // namespace keymaster

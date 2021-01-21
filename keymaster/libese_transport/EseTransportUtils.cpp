@@ -17,20 +17,19 @@
  ** Copyright 2020 NXP
  **
  */
-#include <iomanip>
 #include <vector>
+#include <iomanip>
 
 #include <EseTransportUtils.h>
 
 namespace se_transport {
-// Helper method to dump vector contents
+ // Helper method to dump vector contents
 std::ostream& operator<<(std::ostream& os, const std::vector<uint8_t>& vec) {
-    std::ios_base::fmtflags flags(os.flags());
-    os << "{ ";
-    for (uint8_t c : vec)
-        os << std::setfill('0') << std::hex << std::uppercase << std::setw(2) << (0xFF & c);
-    os.flags(flags);
-    os << " }";
-    return os;
+  std::ios_base::fmtflags flags(os.flags());
+  os << "{ ";
+  for (uint8_t c : vec) os <<std::setfill('0')<<std::hex<< std::uppercase << std::setw(2)<<(0xFF & c);
+  os.flags(flags);
+  os << " }";
+  return os;
 }
-}  // namespace se_transport
+} // namespace se_transport

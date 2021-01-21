@@ -14,17 +14,17 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
-#include <arpa/inet.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <unistd.h>
+#include <string.h>
 #include <vector>
 #include "Transport.h"
 
-#define PORT 8080
-#define IPADDR "10.9.40.24"
-#define UNUSED_V(a) a = a
+#define PORT    8080
+#define IPADDR  "10.9.40.24"
+#define UNUSED_V(a) a=a
 
 namespace se_transport {
 
@@ -32,9 +32,8 @@ bool OmapiTransport::openConnection() {
     return true;
 }
 
-bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen,
-                              std::vector<uint8_t>& output) {
-    std::vector<uint8_t> test(inData, inData + inLen);
+bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) {
+    std::vector<uint8_t> test(inData, inData+inLen);
     output = std::move(test);
     return true;
 }
@@ -47,4 +46,4 @@ bool OmapiTransport::isConnected() {
     return true;
 }
 
-}  // namespace se_transport
+}
