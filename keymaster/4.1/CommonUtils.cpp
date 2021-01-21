@@ -14,25 +14,6 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
-/******************************************************************************
- *
- *  The original Work has been changed by NXP.
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *  Copyright 2020 NXP
- *
- **********************************************************************************/
 
 #include <CommonUtils.h>
 #include <openssl/evp.h>
@@ -45,8 +26,10 @@
 #include <keymaster/km_openssl/rsa_key.h>
 #include <keymaster/km_openssl/ec_key.h>
 #include <android-base/logging.h>
-#include <vector>
-#include <iomanip>
+
+#define TAG_SEQUENCE 0x30
+#define LENGTH_MASK 0x80
+#define LENGTH_VALUE_MASK 0x7F
 
 namespace keymaster {
 namespace V4_1 {
@@ -242,16 +225,53 @@ pubModulus) {
     EVP_PKEY_free(pkey);
     return ErrorCode::OK;
 }
-#ifdef NXP_EXTNS
-std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec) {
-  std::ios_base::fmtflags flags(os.flags());
-  os << "{ ";
-  for (uint8_t c : vec) os <<std::setfill('0')<<std::hex<< std::uppercase << std::setw(2)<<(0xFF & c);
-  os.flags(flags);
-  os << " }";
-  return os;
+
+ErrorCode getCertificateChain(std::vector<uint8_t>& chainBuffer, std::vector<std::vector<uint8_t>>& certChain) {
+    uint8_t *data = chainBuffer.data();
+    int index = 0;
+    uint32_t length = 0;
+    while (index < chainBuffer.size()) {
+        std::vector<uint8_t> temp;
+        if(data[index] == TAG_SEQUENCE) {
+            //read next byte
+            if (0 == (data[index+1] & LENGTH_MASK)) {
+                length = (uint32_t)data[index];
+                //Add SEQ and Length fields
+                length += 2;
+            } else {
+                int additionalBytes = data[index+1] & LENGTH_VALUE_MASK;
+                if (additionalBytes == 0x01) {
+                    length = data[index+2];
+                    //Add SEQ and Length fields
+                    length += 3;
+                } else if (additionalBytes == 0x02) {
+                    length = (data[index+2] << 8 | data[index+3]);
+                    //Add SEQ and Length fields
+                    length += 4;
+                } else if (additionalBytes == 0x04) {
+                    length = data[index+2] << 24;
+                    length |= data[index+3] << 16;
+                    length |= data[index+4] << 8;
+                    length |= data[index+5];
+                    //Add SEQ and Length fields
+                    length += 6;
+                } else {
+                    //Length is larger than uint32_t max limit.
+                    return ErrorCode::UNKNOWN_ERROR;
+                }
+            }
+            temp.insert(temp.end(), (data+index), (data+index+length));
+            index += length;
+
+            certChain.push_back(std::move(temp));
+        } else {
+            //SEQUENCE TAG MISSING.
+            return ErrorCode::UNKNOWN_ERROR;
+        }
+    }
+    return ErrorCode::OK;
 }
-#endif
+
 
 }  // namespace javacard
 }  // namespace V4_1

@@ -22,16 +22,6 @@
 #include <android/hardware/keymaster/4.1/types.h>
 #include <keymaster/serializable.h>
 #include <hardware/keymaster_defs.h>
-#include <vector>
-
-static bool debug_jc = true;
-#define LOGD_JC(x) \
-  if(debug_jc) { \
-    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x; \
-  }
-
-#define LOGE_JC(x) \
-    LOG(INFO) <<"("<<__FUNCTION__ <<")"<<" "<<x;
 
 namespace keymaster {
 namespace V4_1 {
@@ -96,6 +86,8 @@ pubModulus);
 ErrorCode ecRawKeyFromPKCS8(const std::vector<uint8_t>& pkcs8Blob, std::vector<uint8_t>& secret, std::vector<uint8_t>&
 publicKey, EcCurve& eccurve);
 
+ErrorCode getCertificateChain(std::vector<uint8_t>& chainBuffer, std::vector<std::vector<uint8_t>>& certChain);
+
 class KmParamSet : public keymaster_key_param_set_t {
     public:
         explicit KmParamSet(const hidl_vec<KeyParameter>& keyParams)
@@ -108,7 +100,6 @@ class KmParamSet : public keymaster_key_param_set_t {
         ~KmParamSet() { delete[] params; }
 };
 
-std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec);
 }  // namespace javacard
 }  // namespace V4_1
 }  // namespace keymaster
