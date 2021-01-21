@@ -56,7 +56,6 @@ using V41ErrorCode = ::android::hardware::keymaster::V4_1::ErrorCode;
 
 class JavacardKeymaster4Device : public IKeymasterDevice {
   public:
-
     JavacardKeymaster4Device();
     virtual ~JavacardKeymaster4Device();
 

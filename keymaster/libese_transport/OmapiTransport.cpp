@@ -74,6 +74,12 @@ bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::ve
        }
     }
     status = mAppletConnection.transmit(cApdu,output);
+    if (output.size() < 2 ||
+        (output.size() >= 2 && (output.at(output.size() - 2) == LOGICAL_CH_NOT_SUPPORTED_SW1 &&
+                                output.at(output.size() - 1) == LOGICAL_CH_NOT_SUPPORTED_SW2))) {
+        LOGD_OMAPI("transmit failed ,close the channel");
+        return mAppletConnection.close();
+    }
 #ifdef INTERVAL_TIMER
      LOGD_OMAPI("Set the timer");
      mTimer.set(SESSION_TIMEOUT,this, SessionTimerFunc);

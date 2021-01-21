@@ -14,9 +14,34 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+/******************************************************************************
+ *
+ *  The original Work has been changed by NXP.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  Copyright 2020 NXP
+ *
+ **********************************************************************************/
 
 #include <JavacardOperationContext.h>
 #include <algorithm>
+
+#ifdef NXP_EXTNS
+#define LOG_TAG "OperationContext"
+#include <CommonUtils.h>
+#include <android-base/logging.h>
+#endif
 
 #define MAX_ALLOWED_INPUT_SIZE 512
 #define AES_BLOCK_SIZE          16
@@ -62,6 +87,7 @@ ErrorCode OperationContext::setOperationInfo(uint64_t operationHandle, KeyPurpos
         const hidl_vec<KeyParameter>& params) {
     ErrorCode errorCode = ErrorCode::OK;
     OperationData data;
+    LOGD_JC("operationHandle:" << operationHandle);
     if(ErrorCode::OK != (errorCode = hidlParamSet2OperatinInfo(params, data.info))) {
         return errorCode;
     }
@@ -73,8 +99,9 @@ ErrorCode OperationContext::setOperationInfo(uint64_t operationHandle, KeyPurpos
 }
 
 ErrorCode OperationContext::clearOperationData(uint64_t operHandle) {
+    LOGD_JC("operationHandle:" << operHandle);
     size_t size = operationTable.erase(operHandle);
-    if(!size)
+    if (!size)
         return  ErrorCode::INVALID_OPERATION_HANDLE;
     else
         return ErrorCode::OK;
@@ -85,6 +112,7 @@ ErrorCode OperationContext::validateInputData(uint64_t operHandle, Operation opr
     ErrorCode errorCode = ErrorCode::OK;
 
     OperationData& oprData = operationTable[operHandle];
+    LOGD_JC("operationHandle:" << operHandle);
 
     if(KeyPurpose::SIGN == oprData.info.purpose) {
         if(Algorithm::RSA == oprData.info.alg && Digest::NONE == oprData.info.digest) {
@@ -113,6 +141,7 @@ ErrorCode OperationContext::validateInputData(uint64_t operHandle, Operation opr
         //If it is observed in finish operation that buffered data + input data exceeds the MAX_ALLOWED_INPUT_SIZE then
         //combine both the data in a single buffer. This helps in making sure that no data is left out in the buffer after
         //finish opertion.
+        LOGD_JC("Operation:Finish ,operationHandle:" << operHandle);
         if((oprData.data.buf_len+actualInput.size()) > MAX_ALLOWED_INPUT_SIZE) {
             for(size_t i = 0; i < oprData.data.buf_len; ++i) {
                 input.push_back(oprData.data.buf[i]);
@@ -135,10 +164,12 @@ ErrorCode OperationContext::update(uint64_t operHandle, const std::vector<uint8_
     std::vector<uint8_t> input;
 
     /* Validate the input data */
+    LOGD_JC("operationHandle:" << operHandle);
     if(ErrorCode::OK != (errorCode = validateInputData(operHandle, Operation::Update, actualInput, input))) {
         return errorCode;
     }
 
+    LOGD_JC("operationHandle:" << operHandle << " input.size:" << input.size());
     if (input.size() > MAX_ALLOWED_INPUT_SIZE) {
         int noOfChunks = input.size()/MAX_ALLOWED_INPUT_SIZE;
         int extraData = input.size()%MAX_ALLOWED_INPUT_SIZE;
@@ -172,9 +203,11 @@ ErrorCode OperationContext::finish(uint64_t operHandle, const std::vector<uint8_
     std::vector<uint8_t> input;
 
     /* Validate the input data */
+    LOGD_JC("operationHandle:" << operHandle);
     if(ErrorCode::OK != (errorCode = validateInputData(operHandle, Operation::Finish, actualInput, input))) {
         return errorCode;
     }
+    LOGD_JC("operationHandle:" << operHandle << "input.size:" << input.size());
 
     if (input.size() > MAX_ALLOWED_INPUT_SIZE) {
         int noOfChunks = input.size()/MAX_ALLOWED_INPUT_SIZE;
@@ -183,9 +216,21 @@ ErrorCode OperationContext::finish(uint64_t operHandle, const std::vector<uint8_
             auto first = input.cbegin() + (i*MAX_ALLOWED_INPUT_SIZE);
             auto end = first + MAX_ALLOWED_INPUT_SIZE;
             std::vector<uint8_t> newInput(first, end);
-            if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, newInput.data(), newInput.size(),
-                            Operation::Update, cb))) {
-                return errorCode;
+#ifdef NXP_EXTNS
+            if (extraData == 0 && (i == noOfChunks - 1)) {
+                // last chunk
+                if (ErrorCode::OK !=
+                    (errorCode = handleInternalUpdate(operHandle, newInput.data(), newInput.size(),
+                                                      Operation::Finish, cb, true))) {
+                    return errorCode;
+                }
+            } else {
+#endif
+                if (ErrorCode::OK !=
+                    (errorCode = handleInternalUpdate(operHandle, newInput.data(), newInput.size(),
+                                                      Operation::Update, cb))) {
+                    return errorCode;
+                }
             }
         }
         if(extraData > 0) {
@@ -213,10 +258,16 @@ ErrorCode OperationContext::getBlockAlignedData(uint64_t operHandle, uint8_t* in
     BufferedData& data = operationTable[operHandle].data;
     int bufIndex = data.buf_len;
 
+    LOGD_JC("operationHandle:" << operHandle);
     if(Algorithm::AES == operationTable[operHandle].info.alg) {
         blockSize = AES_BLOCK_SIZE;
     } else if(Algorithm::TRIPLE_DES == operationTable[operHandle].info.alg) {
         blockSize = DES_BLOCK_SIZE;
+    } else {
+#ifdef NXP_EXTNS
+        LOG(ERROR) << "Invalid algorithm ";
+        return ErrorCode::INCOMPATIBLE_ALGORITHM;
+#endif
     }
 
     if(opr == Operation::Finish) {
@@ -234,11 +285,11 @@ ErrorCode OperationContext::getBlockAlignedData(uint64_t operHandle, uint8_t* in
         //of block and send this block in finish operation. This is done to make sure that there will be always a 16
         //bytes of data left for finish operation so that javacard Applet may remove PKCS7 padding if any or get the tag
         //data for AES GCM operation for authentication purpose.
-        if(((operationTable[operHandle].info.alg == Algorithm::AES) ||
-                    (operationTable[operHandle].info.alg == Algorithm::TRIPLE_DES)) &&
-                (operationTable[operHandle].info.pad == PaddingMode::PKCS7 ||
-                 operationTable[operHandle].info.mode == BlockMode::GCM) &&
-                (operationTable[operHandle].info.purpose == KeyPurpose::DECRYPT)) {
+        if (((operationTable[operHandle].info.alg == Algorithm::AES) ||
+             (operationTable[operHandle].info.alg == Algorithm::TRIPLE_DES)) &&
+            (operationTable[operHandle].info.pad == PaddingMode::PKCS7 ||
+             operationTable[operHandle].info.mode == BlockMode::GCM) &&
+            (operationTable[operHandle].info.purpose == KeyPurpose::DECRYPT)) {
             if(blockAlignedLen >= blockSize) blockAlignedLen -= blockSize;
         }
         //Copy data to be send to SE from buffer, only if atleast a minimum block aligned size is available.

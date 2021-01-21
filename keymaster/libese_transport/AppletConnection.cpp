@@ -164,8 +164,11 @@ bool AppletConnection::close() {
     }
     SecureElementStatus status = mSEClient->closeChannel(mOpenChannel);
     if (status != SecureElementStatus::SUCCESS) {
-         LOG(ERROR) << "Channel couldn't be closed: closeChannel call failed";
-         return false;
+        // reason could be SE reset/HAL deinit triggered from other client
+        // which anyway closes all the opened channels
+        LOG(ERROR) << "closeChannel failed";
+        mOpenChannel = -1;
+        return true;
     }
     LOG(INFO) << "Channel closed";
     mOpenChannel = -1;

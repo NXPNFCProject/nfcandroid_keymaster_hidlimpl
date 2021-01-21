@@ -14,7 +14,25 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
-
+/******************************************************************************
+ **
+ ** The original Work has been changed by NXP.
+ **
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
+ **
+ ** http://www.apache.org/licenses/LICENSE-2.0
+ **
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
+ ** limitations under the License.
+ **
+ ** Copyright 2020 NXP
+ **
+ *********************************************************************************/
 #include <climits>
 #include <time.h>
 #include <cppbor.h>
@@ -50,12 +68,20 @@
 #define INS_END_KM_PROVISION_CMD 0x20
 #define INS_END_KM_CMD 0x7F
 
+#ifdef NXP_EXTNS
+#include <iomanip>
+const hidl_vec<uint8_t> kStrongBoxAppletAID = {0xA0, 0x00, 0x00, 0x00, 0x62};
+#endif
+
 namespace keymaster {
 namespace V4_1 {
 namespace javacard {
 
 static std::unique_ptr<se_transport::TransportFactory> pTransportFactory = nullptr;
 constexpr size_t kOperationTableSize = 4;
+#ifdef NXP_EXTNS
+static ErrorCode setBootParameters();
+#endif
 
 struct KM_AUTH_LIST_Delete {
     void operator()(KM_AUTH_LIST* p) { KM_AUTH_LIST_free(p); }
@@ -63,34 +89,38 @@ struct KM_AUTH_LIST_Delete {
 
 enum class Instruction {
     // Keymaster commands
-    INS_GENERATE_KEY_CMD = INS_END_KM_PROVISION_CMD+1,
-    INS_IMPORT_KEY_CMD = INS_END_KM_PROVISION_CMD+2,
-    INS_IMPORT_WRAPPED_KEY_CMD = INS_END_KM_PROVISION_CMD+3,
-    INS_EXPORT_KEY_CMD = INS_END_KM_PROVISION_CMD+4,
-    INS_ATTEST_KEY_CMD = INS_END_KM_PROVISION_CMD+5,
-    INS_UPGRADE_KEY_CMD = INS_END_KM_PROVISION_CMD+6,
-    INS_DELETE_KEY_CMD = INS_END_KM_PROVISION_CMD+7,
-    INS_DELETE_ALL_KEYS_CMD = INS_END_KM_PROVISION_CMD+8,
-    INS_ADD_RNG_ENTROPY_CMD = INS_END_KM_PROVISION_CMD+9,
-    INS_COMPUTE_SHARED_HMAC_CMD = INS_END_KM_PROVISION_CMD+10,
-    INS_DESTROY_ATT_IDS_CMD = INS_END_KM_PROVISION_CMD+11,
-    INS_VERIFY_AUTHORIZATION_CMD = INS_END_KM_PROVISION_CMD+12,
-    INS_GET_HMAC_SHARING_PARAM_CMD = INS_END_KM_PROVISION_CMD+13,
-    INS_GET_KEY_CHARACTERISTICS_CMD = INS_END_KM_PROVISION_CMD+14,
-    INS_GET_HW_INFO_CMD = INS_END_KM_PROVISION_CMD+15,
-    INS_BEGIN_OPERATION_CMD = INS_END_KM_PROVISION_CMD+16,
-    INS_UPDATE_OPERATION_CMD = INS_END_KM_PROVISION_CMD+17,
-    INS_FINISH_OPERATION_CMD = INS_END_KM_PROVISION_CMD+18,
-    INS_ABORT_OPERATION_CMD = INS_END_KM_PROVISION_CMD+19,
-    INS_DEVICE_LOCKED_CMD = INS_END_KM_PROVISION_CMD+20,
-    INS_EARLY_BOOT_ENDED_CMD = INS_END_KM_PROVISION_CMD+21,
-    INS_GET_CERT_CHAIN_CMD = INS_END_KM_PROVISION_CMD+22
+    INS_GENERATE_KEY_CMD = INS_END_KM_PROVISION_CMD + 1,
+    INS_IMPORT_KEY_CMD = INS_END_KM_PROVISION_CMD + 2,
+    INS_IMPORT_WRAPPED_KEY_CMD = INS_END_KM_PROVISION_CMD + 3,
+    INS_EXPORT_KEY_CMD = INS_END_KM_PROVISION_CMD + 4,
+    INS_ATTEST_KEY_CMD = INS_END_KM_PROVISION_CMD + 5,
+    INS_UPGRADE_KEY_CMD = INS_END_KM_PROVISION_CMD + 6,
+    INS_DELETE_KEY_CMD = INS_END_KM_PROVISION_CMD + 7,
+    INS_DELETE_ALL_KEYS_CMD = INS_END_KM_PROVISION_CMD + 8,
+    INS_ADD_RNG_ENTROPY_CMD = INS_END_KM_PROVISION_CMD + 9,
+    INS_COMPUTE_SHARED_HMAC_CMD = INS_END_KM_PROVISION_CMD + 10,
+    INS_DESTROY_ATT_IDS_CMD = INS_END_KM_PROVISION_CMD + 11,
+    INS_VERIFY_AUTHORIZATION_CMD = INS_END_KM_PROVISION_CMD + 12,
+    INS_GET_HMAC_SHARING_PARAM_CMD = INS_END_KM_PROVISION_CMD + 13,
+    INS_GET_KEY_CHARACTERISTICS_CMD = INS_END_KM_PROVISION_CMD + 14,
+    INS_GET_HW_INFO_CMD = INS_END_KM_PROVISION_CMD + 15,
+    INS_BEGIN_OPERATION_CMD = INS_END_KM_PROVISION_CMD + 16,
+    INS_UPDATE_OPERATION_CMD = INS_END_KM_PROVISION_CMD + 17,
+    INS_FINISH_OPERATION_CMD = INS_END_KM_PROVISION_CMD + 18,
+    INS_ABORT_OPERATION_CMD = INS_END_KM_PROVISION_CMD + 19,
+    INS_DEVICE_LOCKED_CMD = INS_END_KM_PROVISION_CMD + 20,
+    INS_EARLY_BOOT_ENDED_CMD = INS_END_KM_PROVISION_CMD + 21,
+    INS_GET_CERT_CHAIN_CMD = INS_END_KM_PROVISION_CMD + 22,
+    INS_SET_BOOT_PARAMS_CMD = INS_BEGIN_KM_CMD + 6  // from Provision.cpp
 };
 
 static inline std::unique_ptr<se_transport::TransportFactory>& getTransportFactoryInstance() {
     if(pTransportFactory == nullptr) {
-        pTransportFactory = std::unique_ptr<se_transport::TransportFactory>(new se_transport::TransportFactory(
-                    android::base::GetBoolProperty("ro.kernel.qemu", false)));
+#ifdef NXP_EXTNS
+        pTransportFactory =
+            std::unique_ptr<se_transport::TransportFactory>(new se_transport::TransportFactory(
+                android::base::GetBoolProperty("ro.kernel.qemu", false), kStrongBoxAppletAID));
+#endif
         pTransportFactory->openConnection();
     }
     return pTransportFactory;
@@ -220,7 +250,28 @@ extendedOutput=false) {
     apduOut.push_back(static_cast<uint8_t>(ins)); //INS
     apduOut.push_back(static_cast<uint8_t>(APDU_P1)); //P1
     apduOut.push_back(static_cast<uint8_t>(APDU_P2)); //P2
+#ifdef NXP_EXTNS
+    (void)(extendedOutput);  // unused variable
+    if (USHRT_MAX >= inputData.size()) {
+        // Send Extended length APDU always as response size is not known to HAL
 
+        // case 1: Lc > 0 CLS | INS | P1 | P2 | 00 | 2bytes of Lc | CommandData | 2 bytes of Le all
+        // set to 00 case 2: Lc = 0 CLS | INS | P1 | P2 | 3 bytes of Le all set to 00
+        apduOut.push_back(static_cast<uint8_t>(0x00));
+        if (inputData.size() > 0) {
+            apduOut.push_back(static_cast<uint8_t>(inputData.size() >> 8));
+            apduOut.push_back(static_cast<uint8_t>(inputData.size() & 0xFF));
+            // Data
+            apduOut.insert(apduOut.end(), inputData.begin(), inputData.end());
+        }
+        // Expected length of output
+        // Accepting complete length of output everytime
+        apduOut.push_back(static_cast<uint8_t>(0x00));
+        apduOut.push_back(static_cast<uint8_t>(0x00));
+    } else {
+        return (ErrorCode::INSUFFICIENT_BUFFER_SPACE);
+    }
+#else
     if(UCHAR_MAX < inputData.size() && USHRT_MAX >= inputData.size()) {
         //Extended length 3 bytes, starts with 0x00
         apduOut.push_back(static_cast<uint8_t>(0x00));
@@ -246,7 +297,7 @@ extendedOutput=false) {
     } else {
         return (ErrorCode::INSUFFICIENT_BUFFER_SPACE);
     }
-
+#endif
     return (ErrorCode::OK);//success
 }
 
@@ -259,15 +310,25 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
         extendedOutput=false) {
     ErrorCode ret = ErrorCode::UNKNOWN_ERROR;
     std::vector<uint8_t> apdu;
-
+#ifdef NXP_EXTNS
+    static bool isBootParamSet = false;
+    if (!isBootParamSet) {
+        if (ErrorCode::OK != (ret = setBootParameters())) {
+            LOG(ERROR) << "Failed to set boot params";
+            return ret;
+        }
+        isBootParamSet = true;
+    }
+#else
     // TODO In real scenario the provision happens in the factory. In that case this
     // below code is not required. This is just used for simulation.
     if (ErrorCode::OK != (ret = provision(getTransportFactoryInstance()))) {
         LOG(ERROR) << "Failed to provision the device";
         return ret;
     }
-
+#endif
     ret = constructApduMessage(ins, inData, apdu, extendedOutput);
+    LOG(INFO) << __FUNCTION__ << " constructed apdu " << apdu;
     if(ret != ErrorCode::OK) return ret;
 
     if(!getTransportFactoryInstance()->sendData(apdu.data(), apdu.size(), response)) {
@@ -275,12 +336,56 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
     }
 
     // Response size should be greater than 2. Cbor output data followed by two bytes of APDU status.
-    if((response.size() <= 2) || (getStatus(response) != APDU_RESP_STATUS_OK)) {
+    if ((response.size() < 2) || (getStatus(response) != APDU_RESP_STATUS_OK)) {
         return (ErrorCode::UNKNOWN_ERROR);
     }
     return (ErrorCode::OK);//success
 }
 
+#ifdef NXP_EXTNS
+static ErrorCode setBootParameters() {
+    std::vector<uint8_t> verifiedBootKey(32, 0);
+    std::vector<uint8_t> verifiedBootKeyHash(32, 0);
+    uint32_t vendorPatchLevel = 0;
+    uint32_t bootPatchLevel = 0;
+    cppbor::Array array;
+    std::vector<uint8_t> apdu;
+    std::vector<uint8_t> response;
+    Instruction ins = Instruction::INS_SET_BOOT_PARAMS_CMD;
+    keymaster_verified_boot_t kmVerifiedBoot = KM_VERIFIED_BOOT_UNVERIFIED;
+
+    array.add(GetOsVersion())
+        .add(GetOsPatchlevel())
+        .add(vendorPatchLevel)
+        .add(bootPatchLevel)
+        .
+        /* Verified Boot Key */
+        add(verifiedBootKey)
+        .
+        /* Verified Boot Hash */
+        add(verifiedBootKeyHash)
+        .
+        /* boot state */
+        add(static_cast<uint32_t>(kmVerifiedBoot))
+        .
+        /* device locked */
+        add(0);
+
+    std::vector<uint8_t> cborData = array.encode();
+    ErrorCode ret = constructApduMessage(ins, cborData, apdu);
+    LOG(INFO) << __FUNCTION__ << " constructed command Apdu " << apdu;
+    if (ret != ErrorCode::OK) return ret;
+
+    if (!getTransportFactoryInstance()->sendData(apdu.data(), apdu.size(), response)) {
+        LOG(ERROR) << __FUNCTION__ << " Failed to send/connect with eSE HAL";
+        return (ErrorCode::SECURE_HW_COMMUNICATION_FAILED);
+    }
+    if ((response.size() < 2) || (getStatus(response) != APDU_RESP_STATUS_OK)) {
+        return (ErrorCode::UNKNOWN_ERROR);
+    }
+    return ErrorCode::OK;
+}
+#endif
 JavacardKeymaster4Device::JavacardKeymaster4Device(): softKm_(new ::keymaster::AndroidKeymaster(
             []() -> auto {
             auto context = new JavaCardSoftKeymasterContext();
@@ -310,8 +415,13 @@ Return<void> JavacardKeymaster4Device::getHardwareInfo(getHardwareInfo_cb _hidl_
         return Void();
     } else {
         //Skip last 2 bytes in cborData, it contains status.
+#ifdef NXP_EXTNS
+        std::tie(item, ret) = cborConverter_.decodeData(
+            std::vector<uint8_t>(resp.begin(), resp.end() - 2), false /* No error code */);
+#else
         std::tie(item, ret) = cborConverter_.decodeData(std::vector<uint8_t>(resp.begin(), resp.end()-2),
                 true);
+#endif
         if (item != nullptr) {
             std::vector<uint8_t> temp;
             if(!cborConverter_.getUint64(item, 0, securityLevel) ||
@@ -625,6 +735,7 @@ Return<void> JavacardKeymaster4Device::getKeyCharacteristics(const hidl_vec<uint
 }
 
 Return<void> JavacardKeymaster4Device::exportKey(KeyFormat exportFormat, const hidl_vec<uint8_t>& keyBlob, const hidl_vec<uint8_t>& clientId, const hidl_vec<uint8_t>& appData, exportKey_cb _hidl_cb) {
+    LOGD_JC("Enter");
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
     hidl_vec<uint8_t> resultKeyBlob;
 
@@ -791,12 +902,13 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
     hidl_vec<KeyParameter> outParams;
     uint64_t operationHandle = 0;
     hidl_vec<KeyParameter> resultParams;
+    LOGD_JC("Enter");
 
     if(keyBlob.size() == 0) {
         _hidl_cb(ErrorCode::INVALID_ARGUMENT, resultParams, operationHandle);
         return Void();
     }
-
+#ifndef NXP_EXTNS
     if (KeyPurpose::ENCRYPT == purpose || KeyPurpose::VERIFY == purpose) {
         BeginOperationRequest request;
         request.purpose = legacy_enum_conversion(purpose);
@@ -814,7 +926,7 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
             return Void();
         }
     }
-
+#endif
     cppbor::Array array;
     std::vector<uint8_t> cborOutData;
     std::unique_ptr<Item> item;
@@ -841,6 +953,7 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
         applicationData = param.blob;
     }
     //Call to getKeyCharacteristics.
+    LOGD_JC("get Key Characteristic");
     getKeyCharacteristics(keyBlob, applicationId, applicationData,
             [&](ErrorCode error, KeyCharacteristics keyChars) {
             errorCode = error;
@@ -863,9 +976,15 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
                         operationHandle = 0;
                     } else {
                         /* Store the operationInfo */
+                        LOGD_JC("returned operationHandle=" << operationHandle);
                         oprCtx_->setOperationInfo(operationHandle, purpose, param.f.algorithm, inParams);
                     }
                 }
+#ifdef NXP_EXTNS
+                else {
+                    LOGD_JC("Response does not include Key params and operation Handle");
+                }
+#endif
             }
         }
     }
@@ -875,6 +994,7 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
 
 Return<void> JavacardKeymaster4Device::update(uint64_t operationHandle, const hidl_vec<KeyParameter>& inParams, const hidl_vec<uint8_t>& input, const HardwareAuthToken& authToken, const VerificationToken& verificationToken, update_cb _hidl_cb) {
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
+
     UpdateOperationRequest request;
     request.op_handle = operationHandle;
     request.input.Reinitialize(input.data(), input.size());
@@ -892,11 +1012,13 @@ Return<void> JavacardKeymaster4Device::update(uint64_t operationHandle, const hi
         outParams = kmParamSet2Hidl(response.output_params);
         output = kmBuffer2hidlVec(response.output);
     } else if(response.error == KM_ERROR_INVALID_OPERATION_HANDLE) {
+        LOGD_JC("Using Javacard Applet");
         std::vector<uint8_t> tempOut;
         /* OperationContext calls this below sendDataCallback callback function. This callback
          * may be called multiple times if the input data is larger than MAX_ALLOWED_INPUT_SIZE.
          */
         auto sendDataCallback = [&](std::vector<uint8_t>& data, bool) -> ErrorCode {
+            LOGD_JC("sendDataCallback: data.size =" << data.size());
             cppbor::Array array;
             std::unique_ptr<Item> item;
             std::vector<uint8_t> cborOutData;
@@ -954,6 +1076,7 @@ Return<void> JavacardKeymaster4Device::update(uint64_t operationHandle, const hi
         }
     }
     if(ErrorCode::OK != errorCode) {
+        LOGE_JC("Error , aborting the operation");
         abort(operationHandle);
     }
     _hidl_cb(errorCode, inputConsumed, outParams, output);
@@ -978,6 +1101,7 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
         outParams = kmParamSet2Hidl(response.output_params);
         output = kmBuffer2hidlVec(response.output);
     } else if (response.error == KM_ERROR_INVALID_OPERATION_HANDLE) {
+        LOGD_JC("Using Javacard Applet");
         std::vector<uint8_t> tempOut;
         bool aadTag = false;
         /* OperationContext calls this below sendDataCallback callback function. This callback
@@ -988,6 +1112,7 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
          * is called.
          */
         auto sendDataCallback = [&](std::vector<uint8_t>& data, bool finish) -> ErrorCode {
+            LOGD_JC("sendDataCallback: data.size =" << data.size());
             cppbor::Array array;
             Instruction ins;
             std::unique_ptr<Item> item;
@@ -1059,15 +1184,23 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
         };
         if(ErrorCode::OK == (errorCode = oprCtx_->finish(operationHandle, std::vector<uint8_t>(input),
                         sendDataCallback))) {
+            LOGD_JC("completed Succesfully");
             output = tempOut;
+        } else {
+            LOGE_JC("**** FAILED ****");
         }
     }
-    abort(operationHandle);
+#ifdef NXP_EXTNS
+    if (errorCode != ErrorCode::OK) {
+        abort(operationHandle);
+    }
+#endif
     _hidl_cb(errorCode, outParams, output);
     return Void();
 }
 
 Return<ErrorCode> JavacardKeymaster4Device::abort(uint64_t operationHandle) {
+    LOGD_JC("operation Handle =" << operationHandle);
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
     AbortOperationRequest request;
     request.op_handle = operationHandle;
@@ -1100,6 +1233,7 @@ Return<ErrorCode> JavacardKeymaster4Device::abort(uint64_t operationHandle) {
 
 // Methods from ::android::hardware::keymaster::V4_1::IKeymasterDevice follow.
 Return<::android::hardware::keymaster::V4_1::ErrorCode> JavacardKeymaster4Device::deviceLocked(bool passwordOnly, const VerificationToken& verificationToken) {
+    LOGD_JC("Enter");
     cppbor::Array array;
     std::unique_ptr<Item> item;
     std::vector<uint8_t> cborOutData;
@@ -1127,6 +1261,7 @@ Return<::android::hardware::keymaster::V4_1::ErrorCode> JavacardKeymaster4Device
 }
 
 Return<::android::hardware::keymaster::V4_1::ErrorCode> JavacardKeymaster4Device::earlyBootEnded() {
+    LOGD_JC("Enter");
     std::unique_ptr<Item> item;
     std::string message;
     std::vector<uint8_t> cborOutData;

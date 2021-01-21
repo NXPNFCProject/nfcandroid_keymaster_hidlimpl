@@ -14,6 +14,25 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+/******************************************************************************
+ *
+ *  The original Work has been changed by NXP.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  Copyright 2020 NXP
+ *
+ **********************************************************************************/
 
 #include <CommonUtils.h>
 #include <openssl/evp.h>
@@ -26,7 +45,10 @@
 #include <keymaster/km_openssl/rsa_key.h>
 #include <keymaster/km_openssl/ec_key.h>
 #include <android-base/logging.h>
-
+#ifdef NXP_EXTNS
+#include <iomanip>
+#include <vector>
+#endif
 #define TAG_SEQUENCE 0x30
 #define LENGTH_MASK 0x80
 #define LENGTH_VALUE_MASK 0x7F
@@ -271,7 +293,17 @@ ErrorCode getCertificateChain(std::vector<uint8_t>& chainBuffer, std::vector<std
     }
     return ErrorCode::OK;
 }
-
+#ifdef NXP_EXTNS
+std::ostream& operator<<(std::ostream& os, const hidl_vec<uint8_t>& vec) {
+    std::ios_base::fmtflags flags(os.flags());
+    os << "{ ";
+    for (uint8_t c : vec)
+        os << std::setfill('0') << std::hex << std::uppercase << std::setw(2) << (0xFF & c);
+    os.flags(flags);
+    os << " }";
+    return os;
+}
+#endif
 
 }  // namespace javacard
 }  // namespace V4_1
