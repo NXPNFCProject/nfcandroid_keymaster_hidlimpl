@@ -144,6 +144,9 @@ bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<
     hidl_vec<uint8_t> cmd = CommandApdu;
     cmd[0] |= mOpenChannel ;
     LOGD_OMAPI("Channel number " << ::android::hardware::toString(mOpenChannel));
+
+    if (mSEClient == nullptr) return false;
+
     mSEClient->transmit(cmd, [&](hidl_vec<uint8_t> result) {
         output = result;
         LOG(INFO) << "recieved response size = " << ::android::hardware::toString(result.size()) << " data = " << result;
@@ -164,8 +167,10 @@ bool AppletConnection::close() {
     }
     SecureElementStatus status = mSEClient->closeChannel(mOpenChannel);
     if (status != SecureElementStatus::SUCCESS) {
-        // reason could be SE reset/HAL deinit triggered from other client
-        // which anyway closes all the opened channels
+        /*
+         * reason could be SE reset or HAL deinit triggered from other client
+         * which anyway closes all the opened channels
+         * */
         LOG(ERROR) << "closeChannel failed";
         mOpenChannel = -1;
         return true;
