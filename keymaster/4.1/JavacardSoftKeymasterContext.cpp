@@ -70,22 +70,34 @@ EVP_PKEY* RSA_fromMaterial(const uint8_t* modulus, size_t mod_size) {
     BIGNUM *e = BN_new();//bignum_decode(exp, 5);
     char exp[] = "65537";
     BN_dec2bn(&e, exp);
+#ifdef NXP_EXTNS
+    if (!n || !e) {
+      if (n) BN_free(n);
+      if (e) BN_free(e);
+      return NULL;
+    }
+    EVP_PKEY* pRsaKey = EVP_PKEY_new();
+    RSA* rsa = RSA_new();
+    rsa->e = e;
+    rsa->n = n;
+    EVP_PKEY_assign_RSA(pRsaKey, rsa);
+    return pRsaKey;
+#else
+    if (!n || !e) return NULL;
 
-   if (!n || !e)
-    return NULL;
-
-   if (e && n) {
-       EVP_PKEY* pRsaKey = EVP_PKEY_new();
-       RSA* rsa = RSA_new();
-       rsa->e = e;
-       rsa->n = n;
-       EVP_PKEY_assign_RSA(pRsaKey, rsa);
-       return pRsaKey;
-   } else {
-       if (n) BN_free(n);
-       if (e) BN_free(e);
-       return NULL;
-   }
+    if (e && n) {
+      EVP_PKEY* pRsaKey = EVP_PKEY_new();
+      RSA* rsa = RSA_new();
+      rsa->e = e;
+      rsa->n = n;
+      EVP_PKEY_assign_RSA(pRsaKey, rsa);
+      return pRsaKey;
+    } else {
+      if (n) BN_free(n);
+      if (e) BN_free(e);
+      return NULL;
+    }
+#endif
 }
 
 EC_GROUP* ChooseGroup(keymaster_ec_curve_t ec_curve) {

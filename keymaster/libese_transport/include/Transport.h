@@ -30,7 +30,7 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  **
- ** Copyright 2020 NXP
+ ** Copyright 2020-2021 NXP
  **
  *********************************************************************************/
 #ifndef __SE_TRANSPORT__
@@ -105,7 +105,7 @@ private:
 class SocketTransport : public ITransport {
 
 public:
-    SocketTransport() : socketStatus(false) {
+    SocketTransport() : mSocket(-1), socketStatus(false) {
     }
     /**
      * Creates a socket instance and connects to the provided server IP and port.

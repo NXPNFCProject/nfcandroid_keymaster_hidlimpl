@@ -14,6 +14,25 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+/******************************************************************************
+ **
+ ** The original Work has been changed by NXP.
+ **
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
+ **
+ ** http://www.apache.org/licenses/LICENSE-2.0
+ **
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
+ ** limitations under the License.
+ **
+ ** Copyright 2021 NXP
+ **
+ *********************************************************************************/
 
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
@@ -178,15 +197,33 @@ static bool readDataFromFile(const char *filename, std::vector<uint8_t>& data) {
     fseek(fp, 0L, SEEK_END);
     long int filesize = ftell(fp);
     rewind(fp);
-    std::unique_ptr<uint8_t[]> buf(new uint8_t[filesize]);
-    if( 0 == fread(buf.get(), filesize, 1, fp)) {
+#ifdef NXP_EXTNS
+    if (filesize >= 0) {
+      std::unique_ptr<uint8_t[]> buf(new uint8_t[filesize]);
+      size_t bytesRead = fread(buf.get(), filesize, 1, fp);
+      if (0 == bytesRead) {
         LOG(ERROR) << "No Content in the file: " << filename;
         ret = false;
-    }
-    if(true == ret) {
-        //data.insert(data.begin(), buf.get(), buf.get() + filesize);
+      }
+      if (true == ret) {
+        // data.insert(data.begin(), buf.get(), buf.get() + filesize);
         data.insert(data.end(), buf.get(), buf.get() + filesize);
+      }
+    } else {
+      LOG(ERROR) << "Filesize is negative";
+      ret = false;
     }
+#else
+    std::unique_ptr<uint8_t[]> buf(new uint8_t[filesize]);
+    if (0 == fread(buf.get(), filesize, 1, fp)) {
+      LOG(ERROR) << "No Content in the file: " << filename;
+      ret = false;
+    }
+    if (true == ret) {
+      // data.insert(data.begin(), buf.get(), buf.get() + filesize);
+      data.insert(data.end(), buf.get(), buf.get() + filesize);
+    }
+#endif
     fclose(fp);
     return ret;
 }
@@ -209,7 +246,7 @@ extendedOutput) {
         apduOut.push_back(static_cast<uint8_t>(0x00));
         apduOut.push_back(static_cast<uint8_t>(0x00));
         apduOut.push_back(static_cast<uint8_t>(0x00));//Accepting complete length of output at a time
-    } else if(0 <= inputData.size() && UCHAR_MAX >= inputData.size()) {
+    } else if(UCHAR_MAX >= inputData.size()) {
         //Short length
         apduOut.push_back(static_cast<uint8_t>(inputData.size()));
         //Data
@@ -397,9 +434,7 @@ static ErrorCode provisionAttestationIDs(std::unique_ptr<se_transport::Transport
     cborConverter.addKeyparameters(array, attestParams);
     std::vector<uint8_t> cborData = array.encode();
 
-    if(ErrorCode::OK != (errorCode = sendProvisionData(transport, ins, cborData, response))) {
-        return errorCode;
-    }
+    errorCode = sendProvisionData(transport, ins, cborData, response);
     return errorCode;
 }
 
@@ -415,9 +450,7 @@ static ErrorCode provisionSharedSecret(std::unique_ptr<se_transport::TransportFa
     array.add(masterKey);
     std::vector<uint8_t> cborData = array.encode();
 
-    if(ErrorCode::OK != (errorCode = sendProvisionData(transport, ins, cborData, response))) {
-        return errorCode;
-    }
+    errorCode = sendProvisionData(transport, ins, cborData, response);
     return errorCode;
 }
 
@@ -427,9 +460,7 @@ response) {
     Instruction ins = Instruction::INS_GET_PROVISION_STATUS_CMD;
     std::vector<uint8_t> cborData;
 
-    if(ErrorCode::OK != (errorCode = sendProvisionData(transport, ins, cborData, response))) {
-        return errorCode;
-    }
+    errorCode = sendProvisionData(transport, ins, cborData, response);
     return errorCode;
 
 }
@@ -440,9 +471,7 @@ static ErrorCode lockProvision(std::unique_ptr<se_transport::TransportFactory>& 
     std::vector<uint8_t> cborData;
     std::vector<uint8_t> response;
 
-    if(ErrorCode::OK != (errorCode = sendProvisionData(transport, ins, cborData, response))) {
-        return errorCode;
-    }
+    errorCode = sendProvisionData(transport, ins, cborData, response);
     return errorCode;
 }
 
@@ -473,9 +502,7 @@ static ErrorCode setBootParameters(std::unique_ptr<se_transport::TransportFactor
 
     std::vector<uint8_t> cborData = array.encode();
 
-    if(ErrorCode::OK != (errorCode = sendProvisionData(transport, ins, cborData, response))) {
-        return errorCode;
-    }
+    errorCode = sendProvisionData(transport, ins, cborData, response);
     return errorCode;
 }
 
