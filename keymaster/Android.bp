@@ -69,7 +69,9 @@ cc_library {
     ],
     product_variables: {
         debuggable: {
-            cflags: ["-DTRANSCEIVE_VIA_SOCKET"]
+            cflags: [
+            "-DVTS_EMULATOR",
+            ]
        }
     }
 }
