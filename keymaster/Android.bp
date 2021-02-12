@@ -67,6 +67,11 @@ cc_library {
         "libese_transport",
         "libcrypto",
     ],
+    product_variables: {
+        debuggable: {
+            cflags: ["-DTRANSCEIVE_VIA_SOCKET"]
+       }
+    }
 }
 
 
@@ -96,5 +101,4 @@ cc_binary {
         "libcrypto",
         "libese_transport"
     ],
-
 }

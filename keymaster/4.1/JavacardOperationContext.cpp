@@ -216,19 +216,16 @@ ErrorCode OperationContext::finish(uint64_t operHandle, const std::vector<uint8_
             auto first = input.cbegin() + (i*MAX_ALLOWED_INPUT_SIZE);
             auto end = first + MAX_ALLOWED_INPUT_SIZE;
             std::vector<uint8_t> newInput(first, end);
-#ifdef NXP_EXTNS
-            if (extraData == 0 && (i == noOfChunks - 1)) {
-                // last chunk
-                if (ErrorCode::OK !=
-                    (errorCode = handleInternalUpdate(operHandle, newInput.data(), newInput.size(),
-                                                      Operation::Finish, cb, true))) {
+            if(extraData == 0 && (i == noOfChunks - 1)) {
+                //Last chunk
+                if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, newInput.data(), newInput.size(),
+                                Operation::Finish, cb, true))) {
                     return errorCode;
                 }
+
             } else {
-#endif
-                if (ErrorCode::OK !=
-                    (errorCode = handleInternalUpdate(operHandle, newInput.data(), newInput.size(),
-                                                      Operation::Update, cb))) {
+                if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, newInput.data(), newInput.size(),
+                                Operation::Update, cb))) {
                     return errorCode;
                 }
             }
@@ -264,10 +261,7 @@ ErrorCode OperationContext::getBlockAlignedData(uint64_t operHandle, uint8_t* in
     } else if(Algorithm::TRIPLE_DES == operationTable[operHandle].info.alg) {
         blockSize = DES_BLOCK_SIZE;
     } else {
-#ifdef NXP_EXTNS
-        LOG(ERROR) << "Invalid algorithm ";
         return ErrorCode::INCOMPATIBLE_ALGORITHM;
-#endif
     }
 
     if(opr == Operation::Finish) {
