@@ -424,7 +424,7 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
     ErrorCode ret = ErrorCode::UNKNOWN_ERROR;
     std::vector<uint8_t> apdu;
 #ifdef NXP_EXTNS
-    static bool isBootParamSet = false;
+    static bool isBootParamSet = true; // disable sending RoT in plain
     if (!isBootParamSet) {
         if (ErrorCode::OK != (ret = setBootParameters())) {
             LOG(ERROR) << "Failed to set boot params";

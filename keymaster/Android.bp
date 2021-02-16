@@ -70,7 +70,7 @@ cc_library {
     product_variables: {
         debuggable: {
             cflags: [
-            "-DVTS_EMULATOR",
+            //"-DVTS_EMULATOR",
             ]
        }
     }
