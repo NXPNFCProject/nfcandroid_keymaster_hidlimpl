@@ -22,7 +22,7 @@ namespace se_transport {
 
 #define MAX_GET_SERVICE_RETRY 10
 #define ONE_SEC  1000*1000*1
-#define SESSION_TIMEOUT 30*1000 // 30 secs
+#define SESSION_TIMEOUT 6*1000 // 6 secs
 #define LOGICAL_CH_NOT_SUPPORTED_SW1 0x68
 #define LOGICAL_CH_NOT_SUPPORTED_SW2 0x81
 // Helper method to dump vector contents
