@@ -57,7 +57,7 @@
 #include <openssl/bio.h>
 #include <openssl/asn1.h>
 
-#define JAVACARD_KEYMASTER_NAME      "JavacardKeymaster4.1Device v0.1"
+#define JAVACARD_KEYMASTER_NAME      "JavacardKeymaster4.1Device v1.0"
 #define JAVACARD_KEYMASTER_AUTHOR    "Android Open Source Project"
 
 #define APDU_CLS 0x80
@@ -69,8 +69,8 @@
 #define INS_END_KM_PROVISION_CMD 0x20
 #define INS_END_KM_CMD 0x7F
 
-#define SW_KM_OPR 0ULL
-#define SB_KM_OPR 1ULL
+#define SW_KM_OPR 0UL
+#define SB_KM_OPR 1UL
 #ifdef NXP_EXTNS
 #include <iomanip>
 const hidl_vec<uint8_t> kStrongBoxAppletAID = {0xA0, 0x00, 0x00, 0x00, 0x62};
@@ -357,60 +357,32 @@ keyFormat, std::vector<uint8_t>& wrappedKeyDescription) {
     return ErrorCode::OK;
 }
 
-ErrorCode constructApduMessage(Instruction& ins, std::vector<uint8_t>& inputData, std::vector<uint8_t>& apduOut, bool
-extendedOutput=false) {
+ErrorCode constructApduMessage(Instruction& ins, std::vector<uint8_t>& inputData, std::vector<uint8_t>& apduOut) {
     apduOut.push_back(static_cast<uint8_t>(APDU_CLS)); //CLS
     apduOut.push_back(static_cast<uint8_t>(ins)); //INS
     apduOut.push_back(static_cast<uint8_t>(APDU_P1)); //P1
     apduOut.push_back(static_cast<uint8_t>(APDU_P2)); //P2
-#ifdef NXP_EXTNS
-    (void)(extendedOutput);  // unused variable
-    if (USHRT_MAX >= inputData.size()) {
-        // Send Extended length APDU always as response size is not known to HAL
 
-        // case 1: Lc > 0 CLS | INS | P1 | P2 | 00 | 2bytes of Lc | CommandData | 2 bytes of Le all
-        // set to 00 case 2: Lc = 0 CLS | INS | P1 | P2 | 3 bytes of Le all set to 00
+    if(USHRT_MAX >= inputData.size()) {
+        // Send extended length APDU always as response size is not known to HAL.
+        // Case 1: Lc > 0  CLS | INS | P1 | P2 | 00 | 2 bytes of Lc | CommandData | 2 bytes of Le all set to 00.
+        // Case 2: Lc = 0  CLS | INS | P1 | P2 | 3 bytes of Le all set to 00.
+        //Extended length 3 bytes, starts with 0x00
         apduOut.push_back(static_cast<uint8_t>(0x00));
         if (inputData.size() > 0) {
             apduOut.push_back(static_cast<uint8_t>(inputData.size() >> 8));
             apduOut.push_back(static_cast<uint8_t>(inputData.size() & 0xFF));
-            // Data
+            //Data
             apduOut.insert(apduOut.end(), inputData.begin(), inputData.end());
         }
-        // Expected length of output
-        // Accepting complete length of output everytime
+        //Expected length of output.
+        //Accepting complete length of output every time.
         apduOut.push_back(static_cast<uint8_t>(0x00));
         apduOut.push_back(static_cast<uint8_t>(0x00));
     } else {
         return (ErrorCode::INSUFFICIENT_BUFFER_SPACE);
     }
-#else
-    if(UCHAR_MAX < inputData.size() && USHRT_MAX >= inputData.size()) {
-        //Extended length 3 bytes, starts with 0x00
-        apduOut.push_back(static_cast<uint8_t>(0x00));
-        apduOut.push_back(static_cast<uint8_t>(inputData.size() >> 8));
-        apduOut.push_back(static_cast<uint8_t>(inputData.size() & 0xFF));
-        //Data
-        apduOut.insert(apduOut.end(), inputData.begin(), inputData.end());
-        //Expected length of output
-        apduOut.push_back(static_cast<uint8_t>(0x00));
-        apduOut.push_back(static_cast<uint8_t>(0x00));
-        apduOut.push_back(static_cast<uint8_t>(0x00));//Accepting complete length of output at a time
-    } else if(0 <= inputData.size() && UCHAR_MAX >= inputData.size()) {
-        //Short length
-        apduOut.push_back(static_cast<uint8_t>(inputData.size()));
-        //Data
-        if(inputData.size() > 0)
-            apduOut.insert(apduOut.end(), inputData.begin(), inputData.end());
-        //Expected length of output
-        apduOut.push_back(static_cast<uint8_t>(0x00));//Accepting complete length of output at a time
-        if(extendedOutput)
-            apduOut.push_back(static_cast<uint8_t>(0x00));
 
-    } else {
-        return (ErrorCode::INSUFFICIENT_BUFFER_SPACE);
-    }
-#endif
     return (ErrorCode::OK);//success
 }
 
@@ -419,8 +391,7 @@ uint16_t getStatus(std::vector<uint8_t>& inputData) {
     return (inputData.at(inputData.size()-2) << 8) | (inputData.at(inputData.size()-1));
 }
 
-ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<uint8_t>& response, bool
-        extendedOutput=false) {
+ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<uint8_t>& response) {
     ErrorCode ret = ErrorCode::UNKNOWN_ERROR;
     std::vector<uint8_t> apdu;
 #ifdef NXP_EXTNS
@@ -440,7 +411,7 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
         return ret;
     }
 #endif
-    ret = constructApduMessage(ins, inData, apdu, extendedOutput);
+    ret = constructApduMessage(ins, inData, apdu);
     LOG(INFO) << __FUNCTION__ << " constructed apdu " << apdu;
     if(ret != ErrorCode::OK) return ret;
 
@@ -903,7 +874,7 @@ Return<void> JavacardKeymaster4Device::attestKey(const hidl_vec<uint8_t>& keyToA
             } else {
                 cborData.clear();
                 cborOutData.clear();
-                errorCode = sendData(Instruction::INS_GET_CERT_CHAIN_CMD, cborData, cborOutData, true);
+                errorCode = sendData(Instruction::INS_GET_CERT_CHAIN_CMD, cborData, cborOutData);
                 if(errorCode == ErrorCode::OK) {
                     //Skip last 2 bytes in cborData, it contains status.
                     std::tie(item, errorCode) = decodeData(cborConverter_, std::vector<uint8_t>(cborOutData.begin(),
