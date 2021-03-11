@@ -103,7 +103,7 @@ bool AppletConnection::connectToSEService() {
         mSEDeathRecipient = new SEDeathRecipient();
         mSEClient->init_1_1(mCallback);
         mSEClient->linkToDeath(mSEDeathRecipient, 0/*cookie*/);
-        status = true;
+        status = mCallback->isClientConnected();
         break;
       }
       usleep(ONE_SEC);
