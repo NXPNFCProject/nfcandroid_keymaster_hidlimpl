@@ -64,15 +64,15 @@ bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::ve
      LOGD_OMAPI("stop the timer");
      mTimer.kill();
 #endif
-    if (!mAppletConnection.isChannelOpen()) {
-       std::vector<uint8_t> selectResponse;
-       status = mAppletConnection.openChannelToApplet(selectResponse);
-       if(!status) {
-          LOG(ERROR) << " Failed to open Logical Channel ,response " << selectResponse;
-          output = selectResponse;
-          return false;
-       }
-    }
+     if (!isConnected()) {
+         std::vector<uint8_t> selectResponse;
+         status = mAppletConnection.openChannelToApplet(selectResponse);
+         if (!status) {
+             LOG(ERROR) << " Failed to open Logical Channel ,response " << selectResponse;
+             output = selectResponse;
+             return status;
+         }
+     }
     status = mAppletConnection.transmit(cApdu,output);
     if (output.size() < 2 ||
         (output.size() >= 2 && (output.at(output.size() - 2) == LOGICAL_CH_NOT_SUPPORTED_SW1 &&
