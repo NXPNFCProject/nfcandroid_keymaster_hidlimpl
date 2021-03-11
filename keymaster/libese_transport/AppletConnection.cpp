@@ -35,12 +35,13 @@
  *********************************************************************************/
 #define LOG_TAG "OmapiTransport"
 
-#include <log/log.h>
-#include <iomanip>
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
-#include <vector>
+#include <log/log.h>
+#include <signal.h>
+#include <iomanip>
 #include <mutex>
+#include <vector>
 
 #include <AppletConnection.h>
 #include <EseTransportUtils.h>
@@ -48,6 +49,12 @@
 using ::android::hardware::secure_element::V1_0::SecureElementStatus;
 using ::android::hardware::secure_element::V1_0::LogicalChannelResponse;
 using android::base::StringPrintf;
+
+se_transport::AppletConnection* g_AppClient = nullptr;
+
+#define NUM_OF_SIGNALS 6
+int handledSignals[] = {SIGTRAP, SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGTERM};
+struct sigaction old_action[NUM_OF_SIGNALS] = {};
 
 namespace se_transport {
 class SecureElementCallback : public ISecureElementHalCallback {
@@ -81,6 +88,47 @@ class SEDeathRecipient : public android::hardware::hidl_death_recipient {
 };
 
 sp<SEDeathRecipient> mSEDeathRecipient = nullptr;
+
+/* Handle Fatal signals to close opened Logical channel before
+ * the process dies
+ */
+void signalHandler(int sig, siginfo_t* info, void* ucontext) {
+    LOG(WARNING) << "received signal " << sig;
+    // close the opened channel ,if there is any
+    g_AppClient->close();
+
+    // default handling of the received signal
+    for (int i = 0; i < NUM_OF_SIGNALS; i++) {
+        if (handledSignals[i] == sig) {
+            if (old_action[i].sa_sigaction != nullptr) {
+                LOG(INFO) << "execute originally installed handler" << sig;
+                (*(old_action[i].sa_sigaction))(sig, info, ucontext);
+            } else if (old_action[i].sa_handler == SIG_DFL || old_action[i].sa_handler == SIG_IGN) {
+                LOG(INFO) << "This signal had a default beahvior or should be ignored " << sig;
+                signal(sig, old_action[i].sa_handler);  // reset to old handler
+                raise(sig);
+            }
+            break;
+        }
+    }
+}
+
+void installHandler() {
+    for (int i = 0; i < NUM_OF_SIGNALS; i++) {
+        struct sigaction enable_act = {};
+        enable_act.sa_sigaction = signalHandler;
+        enable_act.sa_flags = SA_RESTART | SA_SIGINFO | SA_ONSTACK;
+        if (sigaction(handledSignals[i], &enable_act, &(old_action[i])) != 0) {
+            LOG(ERROR) << "Unable to set up signal handler for signal " << handledSignals[i]
+                       << "errno " << errno;
+        }
+    }
+}
+
+AppletConnection::AppletConnection(const std::vector<uint8_t>& aid) : kAppletAID(aid) {
+    g_AppClient = this;
+    installHandler();
+}
 
 bool AppletConnection::connectToSEService() {
     if (mSEClient != nullptr && mCallback->isClientConnected()) {
