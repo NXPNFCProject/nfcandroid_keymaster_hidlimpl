@@ -86,9 +86,6 @@ constexpr size_t kOperationTableSize = 4;
  * original operation handle and second element represents SW or SB operation.
  */
 std::map<uint64_t, std::pair<uint64_t, uint64_t>> operationTable;
-#ifdef NXP_EXTNS
-static ErrorCode setBootParameters();
-#endif
 
 struct KM_AUTH_LIST_Delete {
     void operator()(KM_AUTH_LIST* p) { KM_AUTH_LIST_free(p); }
@@ -117,8 +114,7 @@ enum class Instruction {
     INS_ABORT_OPERATION_CMD = INS_END_KM_PROVISION_CMD + 19,
     INS_DEVICE_LOCKED_CMD = INS_END_KM_PROVISION_CMD + 20,
     INS_EARLY_BOOT_ENDED_CMD = INS_END_KM_PROVISION_CMD + 21,
-    INS_GET_CERT_CHAIN_CMD = INS_END_KM_PROVISION_CMD + 22,
-    INS_SET_BOOT_PARAMS_CMD = INS_BEGIN_KM_CMD + 6  // from Provision.cpp
+    INS_GET_CERT_CHAIN_CMD = INS_END_KM_PROVISION_CMD + 22
 };
 
 //Extended error codes
@@ -394,25 +390,8 @@ uint16_t getStatus(std::vector<uint8_t>& inputData) {
 ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<uint8_t>& response) {
     ErrorCode ret = ErrorCode::UNKNOWN_ERROR;
     std::vector<uint8_t> apdu;
-#ifdef NXP_EXTNS
-    static bool isBootParamSet = true; // disable sending RoT in plain
-    if (!isBootParamSet) {
-        if (ErrorCode::OK != (ret = setBootParameters())) {
-            LOG(ERROR) << "Failed to set boot params";
-            return ret;
-        }
-        isBootParamSet = true;
-    }
-#else
-    // TODO In real scenario the provision happens in the factory. In that case this
-    // below code is not required. This is just used for simulation.
-    if (ErrorCode::OK != (ret = provision(getTransportFactoryInstance()))) {
-        LOG(ERROR) << "Failed to provision the device";
-        return ret;
-    }
-#endif
     ret = constructApduMessage(ins, inData, apdu);
-    LOG(INFO) << __FUNCTION__ << " constructed apdu " << apdu;
+    LOGD_JC("constructed apdu: " << apdu);
     if(ret != ErrorCode::OK) return ret;
 
     if(!getTransportFactoryInstance()->sendData(apdu.data(), apdu.size(), response)) {
@@ -426,50 +405,6 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
     return (ErrorCode::OK);//success
 }
 
-#ifdef NXP_EXTNS
-static ErrorCode setBootParameters() {
-    std::vector<uint8_t> verifiedBootKey(32, 0);
-    std::vector<uint8_t> verifiedBootKeyHash(32, 0);
-    uint32_t vendorPatchLevel = 0;
-    uint32_t bootPatchLevel = 0;
-    cppbor::Array array;
-    std::vector<uint8_t> apdu;
-    std::vector<uint8_t> response;
-    Instruction ins = Instruction::INS_SET_BOOT_PARAMS_CMD;
-    keymaster_verified_boot_t kmVerifiedBoot = KM_VERIFIED_BOOT_UNVERIFIED;
-
-    array.add(GetOsVersion())
-        .add(GetOsPatchlevel())
-        .add(vendorPatchLevel)
-        .add(bootPatchLevel)
-        .
-        /* Verified Boot Key */
-        add(verifiedBootKey)
-        .
-        /* Verified Boot Hash */
-        add(verifiedBootKeyHash)
-        .
-        /* boot state */
-        add(static_cast<uint32_t>(kmVerifiedBoot))
-        .
-        /* device locked */
-        add(0);
-
-    std::vector<uint8_t> cborData = array.encode();
-    ErrorCode ret = constructApduMessage(ins, cborData, apdu);
-    LOG(INFO) << __FUNCTION__ << " constructed command Apdu " << apdu;
-    if (ret != ErrorCode::OK) return ret;
-
-    if (!getTransportFactoryInstance()->sendData(apdu.data(), apdu.size(), response)) {
-        LOG(ERROR) << __FUNCTION__ << " Failed to send/connect with eSE HAL";
-        return (ErrorCode::SECURE_HW_COMMUNICATION_FAILED);
-    }
-    if ((response.size() < 2) || (getStatus(response) != APDU_RESP_STATUS_OK)) {
-        return (ErrorCode::UNKNOWN_ERROR);
-    }
-    return ErrorCode::OK;
-}
-#endif
 JavacardKeymaster4Device::JavacardKeymaster4Device(): softKm_(new ::keymaster::AndroidKeymaster(
             []() -> auto {
             auto context = new JavaCardSoftKeymasterContext();
