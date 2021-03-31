@@ -101,6 +101,7 @@ private:
     IntervalTimer mTimer;
 
 };
+#ifndef NXP_EXTNS
 
 class SocketTransport : public ITransport {
 
@@ -132,6 +133,7 @@ private:
     bool socketStatus;
 
 };
+#endif // NXP_EXTNS
 
 } // namespace se_transport
 #endif /* __SE_TRANSPORT__ */

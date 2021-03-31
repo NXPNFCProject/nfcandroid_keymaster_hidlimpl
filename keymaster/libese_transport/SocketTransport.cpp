@@ -33,6 +33,8 @@
  ** Copyright 2021 NXP
  **
  *********************************************************************************/
+#ifndef NXP_EXTNS
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <android-base/logging.h>
@@ -115,3 +117,5 @@ bool SocketTransport::isConnected() {
 }
 
 } // namespace se_transport
+
+#endif // NXP_EXTNS

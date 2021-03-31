@@ -30,7 +30,7 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  **
- ** Copyright 2020 NXP
+ ** Copyright 2020-2021 NXP
  **
  *********************************************************************************/
 
@@ -50,8 +50,10 @@ class TransportFactory {
     TransportFactory(bool isEmulator, const std::vector<uint8_t>& mAppletAID) {
         if (!isEmulator)
             mTransport = std::unique_ptr<OmapiTransport>(new OmapiTransport(mAppletAID));
+#ifndef NXP_EXTNS
         else
             mTransport = std::unique_ptr<SocketTransport>(new SocketTransport());
+#endif
     }
 
     ~TransportFactory() {}
