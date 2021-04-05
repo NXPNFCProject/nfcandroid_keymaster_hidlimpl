@@ -8,6 +8,7 @@ cc_library {
         "AppletConnection.cpp",
         "EseTransportUtils.cpp",
         "IntervalTimer.cpp",
+        "SignalHandler.cpp",
     ],
     cflags: [
           "-DINTERVAL_TIMER",
