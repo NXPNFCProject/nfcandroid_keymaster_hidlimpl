@@ -67,7 +67,6 @@
 #define INS_BEGIN_KM_CMD 0x00
 #define INS_END_KM_PROVISION_CMD 0x20
 #define INS_END_KM_CMD 0x7F
-
 #define SW_KM_OPR 0UL
 #define SB_KM_OPR 1UL
 #ifdef NXP_EXTNS
@@ -113,7 +112,8 @@ enum class Instruction {
     INS_ABORT_OPERATION_CMD = INS_END_KM_PROVISION_CMD + 19,
     INS_DEVICE_LOCKED_CMD = INS_END_KM_PROVISION_CMD + 20,
     INS_EARLY_BOOT_ENDED_CMD = INS_END_KM_PROVISION_CMD + 21,
-    INS_GET_CERT_CHAIN_CMD = INS_END_KM_PROVISION_CMD + 22
+    INS_GET_CERT_CHAIN_CMD = INS_END_KM_PROVISION_CMD + 22,
+    INS_SET_VERSION_PATCHLEVEL_CMD = INS_BEGIN_KM_CMD+9
 };
 
 //Extended error codes
@@ -195,18 +195,6 @@ static T translateExtendedErrorsToHalErrors(T& errorCode) {
     return err;
 }
 
-template<typename T = ErrorCode>
-static std::tuple<std::unique_ptr<Item>, T> decodeData(CborConverter& cb, const std::vector<uint8_t>& response, bool
-        hasErrorCode) {
-    std::unique_ptr<Item> item(nullptr);
-    T errorCode = T::OK;
-    std::tie(item, errorCode) = cb.decodeData<T>(response, hasErrorCode);
-
-    if (T::OK != errorCode)
-        errorCode = translateExtendedErrorsToHalErrors<T>(errorCode);
-    return {std::move(item), errorCode};
-}
-
 /* Generate new operation handle */
 static ErrorCode generateOperationHandle(uint64_t& oprHandle) {
     std::map<uint64_t, std::pair<uint64_t, uint64_t>>::iterator it;
@@ -252,6 +240,18 @@ static bool isStrongboxOperation(uint64_t halGeneratedOperationHandle) {
 /* Delete the operation handle entry from operation table. */
 static void deleteOprHandleEntry(uint64_t halGeneratedOperationHandle) {
     operationTable.erase(halGeneratedOperationHandle);
+}
+
+template<typename T = ErrorCode>
+static std::tuple<std::unique_ptr<Item>, T> decodeData(CborConverter& cb, const std::vector<uint8_t>& response, bool
+        hasErrorCode) {
+    std::unique_ptr<Item> item(nullptr);
+    T errorCode = T::OK;
+    std::tie(item, errorCode) = cb.decodeData<T>(response, hasErrorCode);
+
+    if (T::OK != errorCode)
+        errorCode = translateExtendedErrorsToHalErrors<T>(errorCode);
+    return {std::move(item), errorCode};
 }
 
 ErrorCode encodeParametersVerified(const VerificationToken& verificationToken, std::vector<uint8_t>& asn1ParamsVerified) {
@@ -389,6 +389,7 @@ uint16_t getStatus(std::vector<uint8_t>& inputData) {
 ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<uint8_t>& response) {
     ErrorCode ret = ErrorCode::UNKNOWN_ERROR;
     std::vector<uint8_t> apdu;
+
     ret = constructApduMessage(ins, inData, apdu);
     LOGD_JC("constructed apdu: " << apdu);
     if(ret != ErrorCode::OK) return ret;
@@ -404,13 +405,41 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
     return (ErrorCode::OK);//success
 }
 
+/**
+ * Sends android system properties like os_version, os_patchlevel and vendor_patchlevel to
+ * the Applet.
+ */
+static ErrorCode setAndroidSystemProperties() {
+    ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
+    cppbor::Array array;
+    std::unique_ptr<Item> item;
+    std::vector<uint8_t> cborOutData;
+
+    array.add(GetOsVersion()).
+        add(GetOsPatchlevel()).
+        add(GetVendorPatchlevel());
+
+    std::vector<uint8_t> cborData = array.encode();
+    errorCode = sendData(Instruction::INS_SET_VERSION_PATCHLEVEL_CMD, cborData, cborOutData);
+    if (ErrorCode::OK != errorCode)
+        LOG(ERROR) << "Failed to set os_version, os_patchlevel and vendor_patchlevel err: " << (int32_t) errorCode;
+
+    return errorCode;
+}
+
 JavacardKeymaster4Device::JavacardKeymaster4Device(): softKm_(new ::keymaster::AndroidKeymaster(
             []() -> auto {
             auto context = new JavaCardSoftKeymasterContext();
             context->SetSystemVersion(GetOsVersion(), GetOsPatchlevel());
             return context;
             }(),
-            kOperationTableSize)), oprCtx_(new OperationContext()) {
+            kOperationTableSize)), oprCtx_(new OperationContext()), isEachSystemPropertySet(false) {
+    // Send Android system properties like os_version, os_patchlevel and vendor_patchlevel
+    // to the Applet. Incase if setting system properties fails here, again try setting
+    // it from computeSharedHmac.
+    if (ErrorCode::OK == setAndroidSystemProperties()) {
+        isEachSystemPropertySet = true;
+    }
 
 }
 
@@ -429,7 +458,7 @@ Return<void> JavacardKeymaster4Device::getHardwareInfo(getHardwareInfo_cb _hidl_
     ErrorCode ret = sendData(Instruction::INS_GET_HW_INFO_CMD, input, resp);
     if (ret == ErrorCode::OK) {
         //Skip last 2 bytes in cborData, it contains status.
-        std::tie(item, ret) = cborConverter_.decodeData(std::vector<uint8_t>(resp.begin(), resp.end()-2),
+        std::tie(item, ret) = decodeData(cborConverter_, std::vector<uint8_t>(resp.begin(), resp.end()-2),
                 false);
         if (item != nullptr) {
             std::vector<uint8_t> temp;
@@ -490,10 +519,22 @@ Return<void> JavacardKeymaster4Device::computeSharedHmac(const hidl_vec<HmacShar
     std::unique_ptr<Item> item;
     std::vector<uint8_t> cborOutData;
     hidl_vec<uint8_t> sharingCheck;
-
     ErrorCode errorCode = ErrorCode::UNKNOWN_ERROR;
     std::vector<uint8_t> tempVec;
     cppbor::Array outerArray;
+    // The Android system properties like OS_VERSION, OS_PATCHLEVEL and VENDOR_PATCHLEVEL are to
+    // be delivered to the Applet when the HAL is first loaded. Incase if settting system properties
+    // failed at construction time then this is one of the ideal places to send this information
+    // to the Applet as computeSharedHmac is called everytime when Android device boots.
+    if (!isEachSystemPropertySet) {
+        errorCode = setAndroidSystemProperties();
+        if (ErrorCode::OK != errorCode) {
+            LOG(ERROR) << " Failed to set os_version, os_patchlevel and vendor_patchlevel err: " << (int32_t)errorCode;
+        } else {
+           isEachSystemPropertySet = true;
+        }
+    }
+
     for(size_t i = 0; i < params.size(); ++i) {
         cppbor::Array innerArray;
         innerArray.add(static_cast<std::vector<uint8_t>>(params[i].seed));
