@@ -395,7 +395,15 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
     if(ret != ErrorCode::OK) return ret;
 
     if(!getTransportFactoryInstance()->sendData(apdu.data(), apdu.size(), response)) {
+      // indicate busy if update is ongoing
+      uint8_t updateResp[2] = {0xFF, 0xFF};
+      if (response.size() == 2 && !memcmp(response.data(), updateResp, sizeof(updateResp))) {
+        LOGD_JC("Not allowed apdu: " << response);
+        return (ErrorCode::SECURE_HW_BUSY);
+      } else {
+        // Other error cases
         return (ErrorCode::SECURE_HW_COMMUNICATION_FAILED);
+      }
     }
 
     // Response size should be greater than 2. Cbor output data followed by two bytes of APDU status.

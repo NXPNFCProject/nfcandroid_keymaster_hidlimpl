@@ -82,7 +82,7 @@ bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::ve
     }
 #ifdef INTERVAL_TIMER
      LOGD_OMAPI("Set the timer");
-     mTimer.set(SESSION_TIMEOUT,this, SessionTimerFunc);
+     mTimer.set(mAppletConnection.getSessionTimeout(), this, SessionTimerFunc);
 #endif
     return status;
 }

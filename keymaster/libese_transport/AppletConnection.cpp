@@ -40,7 +40,9 @@
 #include <log/log.h>
 #include <signal.h>
 #include <iomanip>
+#include <map>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include <AppletConnection.h>
@@ -53,6 +55,12 @@ using android::base::StringPrintf;
 
 
 namespace se_transport {
+
+const std::map<uint8_t, std::string> allowedCmdIns = {
+    {0x06, "INS_SET_BOOT_PARAMS"},     {0x09, "INS_SET_VERSION_PATCHLEVEL"},
+    {0x2A, "INS_COMPUTE_SHARED_HMAC"}, {0x2D, "INS_GET_HMAC_SHARING_PARAM"},
+    {0x2F, "INS_GET_HW_INFO"},         {0x35, "INS_EARLY_BOOT_ENDED"}};
+
 class SecureElementCallback : public ISecureElementHalCallback {
  public:
     Return<void> onStateChange(bool state) override {
@@ -85,7 +93,19 @@ class SEDeathRecipient : public android::hardware::hidl_death_recipient {
 
 sp<SEDeathRecipient> mSEDeathRecipient = nullptr;
 
-AppletConnection::AppletConnection(const std::vector<uint8_t>& aid) : kAppletAID(aid) {
+AppletConnection::AppletConnection(const std::vector<uint8_t>& aid)
+    : kAppletAID(aid), isUpdateSession(false) {}
+
+bool AppletConnection::isCommandAllowed(uint8_t cmdIns) {
+  // If update session ongoing
+  if (isUpdateSession) {
+    std::map<uint8_t, std::string>::const_iterator it = allowedCmdIns.find(cmdIns);
+    // If command is not present in allow list
+    if (it == allowedCmdIns.end()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool AppletConnection::connectToSEService() {
@@ -121,38 +141,67 @@ bool AppletConnection::connectToSEService() {
     return status;
 }
 
-bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
-    bool ret = true;
-    if(mCallback == nullptr || !mCallback->isClientConnected()) {
-      mSEClient = nullptr;
-      mOpenChannel = -1;
-      if(!connectToSEService()) {
-        LOG(ERROR) << "Not connected to eSE Service";
-        return false;
-      }
-    }
-    if (isChannelOpen()) {
-        LOG(INFO) << "channel Already opened";
-        return true;
-    }
-      mSEClient->openLogicalChannel(kAppletAID, 00,
-          [&](LogicalChannelResponse selectResponse, SecureElementStatus status) {
-          if (status == SecureElementStatus::SUCCESS) {
+bool AppletConnection::selectSBApplet(std::vector<uint8_t>& resp, uint8_t p2) {
+  bool stat = false;
+  mSEClient->openLogicalChannel(
+      kAppletAID, p2, [&](LogicalChannelResponse selectResponse, SecureElementStatus status) {
+        if (status == SecureElementStatus::SUCCESS) {
           resp = selectResponse.selectResponse;
           mOpenChannel = selectResponse.channelNumber;
-          }else {
-          ret = false;
+          stat = true;
+          // Upgrade ongoing shall allow only specific commands
+          if ((resp[resp.size() - UPGRADE_OFFSET_SW] & UPGRADE_MASK_BIT) == UPGRADE_MASK_VAL) {
+            isUpdateSession = true;
           }
-          LOG(INFO) << "openLogicalChannel:" << toString(status) << " channelNumber =" <<                                                                            ::android::hardware::toString(selectResponse.channelNumber) << " " << selectResponse.selectResponse;
-          });
-    return ret;
+          LOG(INFO) << "openLogicalChannel:" << toString(status) << " channelNumber ="
+                    << ::android::hardware::toString(selectResponse.channelNumber) << " "
+                    << selectResponse.selectResponse;
+        }
+      });
+  return stat;
 }
+
+bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
+  bool ret = false;
+  uint8_t retry = 0;
+  if (mCallback == nullptr || !mCallback->isClientConnected()) {
+    mSEClient = nullptr;
+    mOpenChannel = -1;
+    if (!connectToSEService()) {
+      LOG(ERROR) << "Not connected to eSE Service";
+      return ret;
+    }
+  }
+  if (isChannelOpen()) {
+    LOG(INFO) << "channel Already opened";
+    return true;
+  }
+  do {
+    if (selectSBApplet(resp, SELECT_P2_VALUE_0) || selectSBApplet(resp, SELECT_P2_VALUE_2)) {
+      ret = true;
+      break;
+    }
+    LOG(INFO) << " openChannelToApplet retry after 2 secs";
+    usleep(2 * ONE_SEC);
+  } while (retry++ < MAX_RETRY_COUNT);
+
+  return ret;
+}
+
 bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<uint8_t>& output){
     hidl_vec<uint8_t> cmd = CommandApdu;
     cmd[0] |= mOpenChannel ;
     LOGD_OMAPI("Channel number " << ::android::hardware::toString(mOpenChannel));
 
     if (mSEClient == nullptr) return false;
+    if (!isCommandAllowed(CommandApdu[APDU_INS_OFFSET])) {
+      LOG(ERROR) << "command Ins not allowed, " << CommandApdu[APDU_INS_OFFSET]
+                 << " upgrade ongoing";
+      output.clear();
+      output.push_back(0xFF);
+      output.push_back(0xFF);
+      return false;
+    }
     // block any fatal signal delivery
     SignalHandler::getInstance()->blockSignals();
 
@@ -166,9 +215,15 @@ bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<
     return true;
 }
 
+int AppletConnection::getSessionTimeout() {
+  // session timer is while update ongoing
+  return (isUpdateSession) ? UPGRADE_SESSION_TIMEOUT : SESSION_TIMEOUT;
+}
+
 bool AppletConnection::close() {
     LOGD_OMAPI("Enter");
     std::lock_guard<std::mutex> lock(channel_mutex_);
+    isUpdateSession = false;
     if (mSEClient == nullptr) {
          LOG(ERROR) << "Channel couldn't be closed mSEClient handle is null";
          return false;
