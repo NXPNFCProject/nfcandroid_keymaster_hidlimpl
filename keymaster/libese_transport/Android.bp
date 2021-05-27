@@ -9,9 +9,11 @@ cc_library {
         "EseTransportUtils.cpp",
         "IntervalTimer.cpp",
         "SignalHandler.cpp",
+        "SBUpdateHmacMgmt.cpp",
     ],
     cflags: [
           "-DINTERVAL_TIMER",
+          "-DHMAC_RETRIGGER_REQUIRED",
     ],
     export_include_dirs: [
         "include",

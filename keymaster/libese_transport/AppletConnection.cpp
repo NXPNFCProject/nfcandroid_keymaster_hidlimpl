@@ -97,11 +97,18 @@ AppletConnection::AppletConnection(const std::vector<uint8_t>& aid)
     : kAppletAID(aid), isUpdateSession(false) {}
 
 bool AppletConnection::isCommandAllowed(uint8_t cmdIns) {
-  // If update session ongoing
+  std::map<uint8_t, std::string>::const_iterator it = allowedCmdIns.find(cmdIns);
+  // If command is not present in allow list
+  if (it == allowedCmdIns.end()) {
+    return false;
+  }
+  return true;
+}
+
+bool AppletConnection::isCommandAllowedForUpdateSession(uint8_t cmdIns) {
+  // If update session ongoing or if skipUpdatesession true
   if (isUpdateSession) {
-    std::map<uint8_t, std::string>::const_iterator it = allowedCmdIns.find(cmdIns);
-    // If command is not present in allow list
-    if (it == allowedCmdIns.end()) {
+    if (!isCommandAllowed(cmdIns)) {
       return false;
     }
   }
@@ -179,6 +186,9 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
   do {
     if (selectSBApplet(resp, SELECT_P2_VALUE_0) || selectSBApplet(resp, SELECT_P2_VALUE_2)) {
       ret = true;
+#ifdef HMAC_RETRIGGER_REQUIRED
+      mSBUpdateconn.updateChannelState(true);
+#endif
       break;
     }
     LOG(INFO) << " openChannelToApplet retry after 2 secs";
@@ -194,7 +204,7 @@ bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<
     LOGD_OMAPI("Channel number " << ::android::hardware::toString(mOpenChannel));
 
     if (mSEClient == nullptr) return false;
-    if (!isCommandAllowed(CommandApdu[APDU_INS_OFFSET])) {
+    if (!isCommandAllowedForUpdateSession(CommandApdu[APDU_INS_OFFSET])) {
       LOG(ERROR) << "command Ins not allowed, " << CommandApdu[APDU_INS_OFFSET]
                  << " upgrade ongoing";
       output.clear();
@@ -202,6 +212,13 @@ bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<
       output.push_back(0xFF);
       return false;
     }
+#ifdef HMAC_RETRIGGER_REQUIRED
+    else if (!mSBUpdateconn.checkAndTriggerHMACReshare(
+                 CommandApdu, output, isUpdateSession,
+                 isCommandAllowed(CommandApdu[APDU_INS_OFFSET]))) {
+      return false;
+    }
+#endif
     // block any fatal signal delivery
     SignalHandler::getInstance()->blockSignals();
 
@@ -228,6 +245,9 @@ bool AppletConnection::close() {
          LOG(ERROR) << "Channel couldn't be closed mSEClient handle is null";
          return false;
     }
+#ifdef HMAC_RETRIGGER_REQUIRED
+    mSBUpdateconn.updateChannelState(false);
+#endif
     if(mOpenChannel < 0){
        LOG(INFO) << "Channel is already closed";
        return true;
