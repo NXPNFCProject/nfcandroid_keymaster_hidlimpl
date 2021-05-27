@@ -42,7 +42,7 @@
 #include <keymaster/key_blob_utils/software_keyblobs.h>
 #include <keymaster/android_keymaster_utils.h>
 #include <keymaster/wrapped_key.h>
-#include <keymaster/attestation_record.h>
+#include <keymaster/km_openssl/attestation_record.h>
 #include <keymaster/km_openssl/openssl_err.h>
 #include <keymaster/km_openssl/openssl_utils.h>
 #include <openssl/aes.h>
@@ -576,7 +576,7 @@ Return<void> JavacardKeymaster4Device::computeSharedHmac(const hidl_vec<HmacShar
      * computeSharedHmac.
      */
     else {
-        ComputeSharedHmacRequest request;
+        ComputeSharedHmacRequest request(softKm_->message_version());
         request.params_array.params_array = new keymaster::HmacSharingParameters[params.size()];
         request.params_array.num_params = params.size();
         for (size_t i = 0; i < params.size(); ++i) {
@@ -812,11 +812,11 @@ Return<void> JavacardKeymaster4Device::exportKey(KeyFormat exportFormat, const h
         return Void();
     }
 
-    ExportKeyRequest request;
+    ExportKeyRequest request(softKm_->message_version());
     request.key_format = legacy_enum_conversion(exportFormat);
     request.SetKeyMaterial(keyBlob.data(), keyBlob.size());
 
-    ExportKeyResponse response;
+    ExportKeyResponse response(softKm_->message_version());
     softKm_->ExportKey(request, &response);
 
     if(response.error == KM_ERROR_INCOMPATIBLE_ALGORITHM) {
@@ -975,12 +975,12 @@ Return<void> JavacardKeymaster4Device::begin(KeyPurpose purpose, const hidl_vec<
      * are handled by softkeymaster.
      */
     if (KeyPurpose::ENCRYPT == purpose || KeyPurpose::VERIFY == purpose) {
-        BeginOperationRequest request;
+        BeginOperationRequest request(softKm_->message_version());
         request.purpose = legacy_enum_conversion(purpose);
         request.SetKeyMaterial(keyBlob.data(), keyBlob.size());
         request.additional_params.Reinitialize(KmParamSet(inParams));
 
-        BeginOperationResponse response;
+        BeginOperationResponse response(softKm_->message_version());
         /* For Symmetric key operation, the BeginOperation returns KM_ERROR_INCOMPATIBLE_ALGORITHM error. */
         softKm_->BeginOperation(request, &response);
 
@@ -1077,7 +1077,7 @@ Return<void> JavacardKeymaster4Device::update(uint64_t halGeneratedOprHandle, co
     hidl_vec<KeyParameter> outParams;
     hidl_vec<uint8_t> output;
     uint64_t operationHandle;
-    UpdateOperationResponse response;
+    UpdateOperationResponse response(softKm_->message_version());
     if (ErrorCode::OK != (errorCode = getOrigOperationHandle(halGeneratedOprHandle, operationHandle))) {
         _hidl_cb(errorCode, inputConsumed, outParams, output);
         return Void();
@@ -1085,7 +1085,7 @@ Return<void> JavacardKeymaster4Device::update(uint64_t halGeneratedOprHandle, co
 
     if (!isStrongboxOperation(halGeneratedOprHandle)) {
         /* SW keymaster (Public key operation) */
-        UpdateOperationRequest request;
+        UpdateOperationRequest request(softKm_->message_version());
         request.op_handle = operationHandle;
         request.input.Reinitialize(input.data(), input.size());
         request.additional_params.Reinitialize(KmParamSet(inParams));
@@ -1178,7 +1178,7 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t halGeneratedOprHandle, co
     uint64_t operationHandle;
     hidl_vec<KeyParameter> outParams;
     hidl_vec<uint8_t> output;
-    FinishOperationResponse response;
+    FinishOperationResponse response(softKm_->message_version());
 
     if (ErrorCode::OK != (errorCode = getOrigOperationHandle(halGeneratedOprHandle, operationHandle))) {
         _hidl_cb(errorCode, outParams, output);
@@ -1187,7 +1187,7 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t halGeneratedOprHandle, co
 
     if (!isStrongboxOperation(halGeneratedOprHandle)) {
         /* SW keymaster (Public key operation) */
-        FinishOperationRequest request;
+        FinishOperationRequest request(softKm_->message_version());
         request.op_handle = operationHandle;
         request.input.Reinitialize(input.data(), input.size());
         request.signature.Reinitialize(signature.data(), signature.size());
@@ -1306,10 +1306,10 @@ Return<ErrorCode> JavacardKeymaster4Device::abort(uint64_t halGeneratedOprHandle
     if (ErrorCode::OK != (errorCode = getOrigOperationHandle(halGeneratedOprHandle, operationHandle))) {
         return errorCode;
     }
-    AbortOperationRequest request;
+    AbortOperationRequest request(softKm_->message_version());
     request.op_handle = operationHandle;
 
-    AbortOperationResponse response;
+    AbortOperationResponse response(softKm_->message_version());
     softKm_->AbortOperation(request, &response);
 
     errorCode = legacy_enum_conversion(response.error);

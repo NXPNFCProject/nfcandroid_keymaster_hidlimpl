@@ -58,9 +58,10 @@ cc_library {
         "libhardware",
         "libhidlbase",
         "libsoftkeymasterdevice",
+        "libsoft_attestation_cert",
         "libkeymaster_messages",
         "libkeymaster_portable",
-        "libcppbor",
+        "libcppbor_external",
         "android.hardware.keymaster@4.1",
         "android.hardware.keymaster@4.0",
         "libese_transport",
@@ -74,7 +75,6 @@ cc_library {
        }
     }
 }
-
 
 cc_binary {
     name: "android.hardware.keymaster@4.1-javacard.service",
@@ -94,9 +94,10 @@ cc_binary {
         "libhidlbase",
         "liblog",
         "libutils",
-        "libcppbor",
+        "libcppbor_external",
         "libJavacardKeymaster41",
         "libsoftkeymasterdevice",
+        "libsoft_attestation_cert",
         "libkeymaster_messages",
         "libkeymaster_portable",
         "libcrypto",
