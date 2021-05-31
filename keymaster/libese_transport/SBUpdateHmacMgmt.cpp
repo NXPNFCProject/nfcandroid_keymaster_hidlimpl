@@ -73,19 +73,17 @@ void SBUpdateHmacMgmt::updateChannelState(bool isOpen) { isSessionOpen = isOpen;
 bool SBUpdateHmacMgmt::checkAndTriggerHMACReshare(std::vector<uint8_t>& CommandApdu,
                                                   std::vector<uint8_t>& output,
                                                   bool isUpdateSession, bool isCommandAllow) {
-  bool stat = false;
+  bool stat = true;
 
   if (isUpdateSession && CommandApdu[APDU_INS_OFFSET] == INS_GET_HMAC_SHARING_PARAM) {
     isHMACSharingrequired = true;
     StartStopHMACTimer(true);
     LOG(INFO) << "HMAC re-sharing scenario detected!!!";
-    stat = true;
   } else if (!isUpdateSession && isHMACSharingrequired &&
              CommandApdu[APDU_INS_OFFSET] == INS_GET_HMAC_SHARING_PARAM) {
     isHMACSharingrequired = false;
     StartStopHMACTimer(false);
     LOG(INFO) << "HMAC re-sharing triggered, completed!!!";
-    stat = true;
   } else if (!isUpdateSession && isHMACSharingrequired && !isCommandAllow) {
     output.clear();
     output.push_back(0xFF);
