@@ -30,7 +30,7 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  **
- ** Copyright 2020 NXP
+ ** Copyright 2020-2021 NXP
  *************************************************************************/
 
 #include <android-base/logging.h>
@@ -43,7 +43,7 @@ int main() {
     auto keymaster = new ::keymaster::V4_1::javacard::JavacardKeymaster4Device();
 
     LOG(INFO) << "Register service for StrongBox JavacardKeymaster 4.1 ";
-    auto status = keymaster->registerAsService("javacard");
+    auto status = keymaster->registerAsService("strongbox");
     if (status != android::OK) {
         LOG(FATAL) << "Could not register service for Keymaster 4.1 (" << status << ")";
         return -1;
