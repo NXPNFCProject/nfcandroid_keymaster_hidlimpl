@@ -46,7 +46,7 @@ class CborConverter
         ~CborConverter() = default;
 
         /**
-         * Parses the input data which is in CBOR format and returns a Tuple of Item pointer and the first element in the item pointer.
+         * Parses the input data which is in CBOR format and returns a Tuple of Item pointer and the first element in the item pointer.          
          */
         template<typename T = ErrorCode>
         std::tuple<std::unique_ptr<Item>, T> decodeData(const std::vector<uint8_t>& response, bool

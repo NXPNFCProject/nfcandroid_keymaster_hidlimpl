@@ -183,13 +183,13 @@ ErrorCode OperationContext::update(uint64_t operHandle, const std::vector<uint8_
         }
         if(extraData > 0) {
             std::vector<uint8_t> finalInput(input.cend()-extraData, input.cend());
-            if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, finalInput.data(), finalInput.size(),
+            if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, finalInput.data(), finalInput.size(), 
                             Operation::Update, cb))) {
                 return errorCode;
             }
         }
     } else {
-        if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, input.data(), input.size(),
+        if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, input.data(), input.size(), 
                         Operation::Update, cb))) {
             return errorCode;
         }
@@ -230,13 +230,13 @@ ErrorCode OperationContext::finish(uint64_t operHandle, const std::vector<uint8_
         }
         if(extraData > 0) {
             std::vector<uint8_t> finalInput(input.cend()-extraData, input.cend());
-            if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, finalInput.data(), finalInput.size(),
+            if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, finalInput.data(), finalInput.size(), 
                             Operation::Finish, cb, true))) {
                 return errorCode;
             }
         }
     } else {
-        if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, input.data(), input.size(),
+        if(ErrorCode::OK != (errorCode = handleInternalUpdate(operHandle, input.data(), input.size(), 
                         Operation::Finish, cb, true))) {
             return errorCode;
         }
