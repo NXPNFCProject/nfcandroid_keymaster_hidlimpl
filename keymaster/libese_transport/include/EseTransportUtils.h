@@ -22,16 +22,11 @@ namespace se_transport {
 
 #define MAX_GET_SERVICE_RETRY 10
 #define ONE_SEC  1000*1000*1
-#define SESSION_TIMEOUT 3*1000 // 3 secs
-#define UPGRADE_SESSION_TIMEOUT 5 * 100  // 500 msecs
 #define LOGICAL_CH_NOT_SUPPORTED_SW1 0x68
 #define LOGICAL_CH_NOT_SUPPORTED_SW2 0x81
 #define APDU_INS_OFFSET 1      // INS offset in command APDU
 #define SELECT_P2_VALUE_0 0    // Select command P2 value 0
 #define SELECT_P2_VALUE_2 2    // Select command P2 value 2
-#define UPGRADE_OFFSET_SW 3    // upgrade offset from last in response
-#define UPGRADE_MASK_BIT 0x02  // Update bit mask in upgrade byte
-#define UPGRADE_MASK_VAL 0x02  // Update mask value in upgrade byte
 #define MAX_RETRY_COUNT 3      // Number of retry in case of failure
 
 // Helper method to dump vector contents

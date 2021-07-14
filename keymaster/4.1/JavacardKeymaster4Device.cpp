@@ -398,7 +398,6 @@ ErrorCode sendData(Instruction ins, std::vector<uint8_t>& inData, std::vector<ui
       // indicate busy if update is ongoing
       uint8_t updateResp[2] = {0xFF, 0xFF};
       if (response.size() == 2 && !memcmp(response.data(), updateResp, sizeof(updateResp))) {
-        LOGD_JC("Not allowed apdu: " << response);
         return (ErrorCode::SECURE_HW_BUSY);
       } else {
         // Other error cases

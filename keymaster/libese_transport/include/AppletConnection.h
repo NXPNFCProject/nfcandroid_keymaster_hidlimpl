@@ -36,13 +36,14 @@
 #ifndef __APPLETCONNECTION_H__
 #define __APPLETCONNECTION_H__
 
-#include <SBUpdateHmacMgmt.h>
 #include <android/hardware/secure_element/1.0/types.h>
 #include <android/hardware/secure_element/1.1/ISecureElementHalCallback.h>
 #include <android/hardware/secure_element/1.2/ISecureElement.h>
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
 #include <vector>
+
+#include <SBAccessController.h>
 
 namespace se_transport {
 
@@ -96,20 +97,12 @@ public:
    * Select applet with given P2 parameter
    */
   bool selectSBApplet(std::vector<uint8_t>& resp, uint8_t p2);
-  /**
-   * To check given command instruction is allowed during update session
-   */
-  bool isCommandAllowedForUpdateSession(uint8_t cmdIns);
-  /**
-   * To check given command instruction is from allowed list
-   */
-  bool isCommandAllowed(uint8_t cmdIns);
+
   std::mutex channel_mutex_;  // exclusive access to isChannelopen()/close()
   sp<ISecureElement> mSEClient;
   std::vector<uint8_t> kAppletAID;
   int8_t mOpenChannel = -1;
-  bool isUpdateSession;  // to indicate update session in progress
-  SBUpdateHmacMgmt mSBUpdateconn;
+  SBAccessController mSBAccessController;
 };
 
 }  // namespace se_transport

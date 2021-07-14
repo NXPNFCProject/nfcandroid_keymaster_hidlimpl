@@ -9,7 +9,7 @@ cc_library {
         "EseTransportUtils.cpp",
         "IntervalTimer.cpp",
         "SignalHandler.cpp",
-        "SBUpdateHmacMgmt.cpp",
+        "SBAccessController.cpp",
     ],
     cflags: [
           "-DINTERVAL_TIMER",
