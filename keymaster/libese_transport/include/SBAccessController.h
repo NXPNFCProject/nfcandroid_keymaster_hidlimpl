@@ -21,7 +21,10 @@
 #include <IntervalTimer.h>
 #include <vector>
 
-#define INS_EARLY_BOOT_ENDED (0x35)  // INS Received from VOLD when earlyboot state ends
+#define INS_EARLY_BOOT_ENDED (0x35)      // INS Received from VOLD when earlyboot state ends
+#define INS_BEGIN_OPERATION_CMD (0x30)   // begin()
+#define INS_FINISH_OPERATION_CMD (0x32)  // finish()
+#define INS_ABORT_OPERATION_CMD (0x33)   // abort()
 
 // Session timeout values during Applet upgrade
 #define SMALLEST_SESSION_TIMEOUT (0)       // 0 msec, during actual upgrade process
@@ -30,7 +33,8 @@
 #define SB_ACCESS_BLOCK_TIMER (40 * 1000)  // 40 secs,Block access to SB applet during upgrade
 
 // Other Session timeout
-#define REGULAR_SESSION_TIMEOUT (3 * 1000)  // 3 secs,default value
+#define REGULAR_SESSION_TIMEOUT (3 * 1000)     // 3 secs,default value
+#define CRYPTO_OP_SESSION_TIMEOUT (20 * 1000)  // 20 sec,for begin() operation
 
 enum BOOTSTATE {
     SB_EARLY_BOOT = 0,
@@ -72,7 +76,8 @@ class SBAccessController {
      * Provides session timeout value for Logical channel mgmt
      * 1) UPGRADE_SESSION_TIMEOUT for upgrade teared scenario during early boot
      * 2) SMALLEST_SESSION_TIMEOUT during actual upgrade process
-     * 3) REGULAR_SESSION_TIMEOUT for all other operations
+     * 3) CRYPTO_OP_SESSION_TIMEOUT for crypto begin()
+     * 4) REGULAR_SESSION_TIMEOUT for all other operations
      * Params : void
      * Returns : Session timeout value in ms
      */
@@ -89,8 +94,10 @@ class SBAccessController {
     bool mIsUpdateInProgress;  // stores Applet upgrade state
     BOOTSTATE mBootState;
 
-    IntervalTimer mTimer;  // Timer to set/reset mAccessAllowed
-    void StartAccessTimer(bool /*isStart*/);
+    IntervalTimer mTimer;        // track Applet upgrade progress
+    IntervalTimer mTimerCrypto;  // track crypto operations
+    void StartTimer(bool isStart, IntervalTimer& t, int timeout,
+                    void (*timerFunc)(union sigval arg));
 };
 }  // namespace se_transport
 #endif /* _SBACCESSCONTROLLER_H_ */

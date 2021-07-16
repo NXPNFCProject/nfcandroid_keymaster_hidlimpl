@@ -30,7 +30,9 @@
 
 namespace se_transport {
 
-static bool mAccessAllowed = true;
+static bool g_AccessAllowed = true;
+static bool g_IsCryptoOperationRunning = false;
+
 // These should be in sync with JavacardKeymasterDevice41.cpp
 // Whitelisted cmds
 std::map<uint8_t, uint8_t> allowedCmdIns = {{0x09 /*INS_SET_VERSION_PATCHLEVEL*/, 0},
@@ -38,30 +40,36 @@ std::map<uint8_t, uint8_t> allowedCmdIns = {{0x09 /*INS_SET_VERSION_PATCHLEVEL*/
                                             {0x2D /*INS_GET_HMAC_SHARING_PARAM*/, 0},
                                             {0x2F /*INS_GET_HW_INFO*/, 0}};
 
-static void AccessTimerFunc(union sigval arg) {
+static void CryptoOpTimerFunc(union sigval arg) {
     (void)arg;  // unused
-    mAccessAllowed = true;
+    g_IsCryptoOperationRunning = false;
 }
 
-void SBAccessController::StartAccessTimer(bool isStart) {
-    mTimer.kill();
-    if (!isStart) {
-        mAccessAllowed = true;  // Full access
-    } else {
-        mAccessAllowed = false;  // No access or Limited access
-        mTimer.set(SB_ACCESS_BLOCK_TIMER, this, AccessTimerFunc);
+static void AccessTimerFunc(union sigval arg) {
+    (void)arg;  // unused
+    g_AccessAllowed = true;
+}
+
+void SBAccessController::startTimer(bool isStart, IntervalTimer& t, int timeout,
+                                    void (*timerFunc)(union sigval)) {
+    t.kill();
+    if (isStart) {
+        t.set(timeout, this, timerFunc);
     }
 }
+
 void SBAccessController::parseResponse(std::vector<uint8_t>& responseApdu) {
     // check if StrongBox Applet update is underway
     if ((responseApdu[responseApdu.size() - UPGRADE_OFFSET_SW] & UPGRADE_MASK_BIT) ==
         UPGRADE_MASK_VAL) {
         mIsUpdateInProgress = true;
         LOG(INFO) << "StrongBox Applet update is in progress";
-        StartAccessTimer(true);
+        g_AccessAllowed = false;  // No access or Limited access
+        startTimer(true, mTimer, SB_ACCESS_BLOCK_TIMER, AccessTimerFunc);
     } else {
         mIsUpdateInProgress = false;
-        StartAccessTimer(false);
+        g_AccessAllowed = true;  // Full access
+        startTimer(false, mTimer, 0, nullptr);
     }
 }
 int SBAccessController::getSessionTimeout() {
@@ -69,12 +77,12 @@ int SBAccessController::getSessionTimeout() {
         return (mBootState == BOOTSTATE::SB_EARLY_BOOT_ENDED) ? SMALLEST_SESSION_TIMEOUT
                                                               : UPGRADE_SESSION_TIMEOUT;
     } else {
-        return REGULAR_SESSION_TIMEOUT;
+        return g_IsCryptoOperationRunning ? CRYPTO_OP_SESSION_TIMEOUT : REGULAR_SESSION_TIMEOUT;
     }
 }
 bool SBAccessController::isSelectAllowed() {
     bool select_allowed = false;
-    if (mAccessAllowed) {
+    if (g_AccessAllowed) {
         select_allowed = true;
     } else {
         switch (mBootState) {
@@ -107,8 +115,15 @@ void SBAccessController::updateBootState() {
 }
 bool SBAccessController::isOperationAllowed(uint8_t cmdIns) {
     bool op_allowed = false;
-    if (mAccessAllowed) {
+    if (g_AccessAllowed) {
         op_allowed = true;
+        if (cmdIns == INS_BEGIN_OPERATION_CMD) {
+            g_IsCryptoOperationRunning = true;
+            startTimer(true, mTimerCrypto, CRYPTO_OP_SESSION_TIMEOUT, CryptoOpTimerFunc);
+        } else if (cmdIns == INS_FINISH_OPERATION_CMD || cmdIns == INS_ABORT_OPERATION_CMD) {
+            g_IsCryptoOperationRunning = false;
+            startTimer(false, mTimerCrypto, 0, nullptr);
+        }
     } else {
         switch (mBootState) {
             case BOOTSTATE::SB_EARLY_BOOT: {
