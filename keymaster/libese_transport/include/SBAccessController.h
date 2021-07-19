@@ -21,10 +21,10 @@
 #include <IntervalTimer.h>
 #include <vector>
 
-#define INS_EARLY_BOOT_ENDED (0x35)      // INS Received from VOLD when earlyboot state ends
-#define INS_BEGIN_OPERATION_CMD (0x30)   // begin()
-#define INS_FINISH_OPERATION_CMD (0x32)  // finish()
-#define INS_ABORT_OPERATION_CMD (0x33)   // abort()
+#define EARLY_BOOT_ENDED_CMD (0x35)  // INS Received from VOLD when earlyboot state ends
+#define BEGIN_OPERATION_CMD (0x30)   // begin()
+#define FINISH_OPERATION_CMD (0x32)  // finish()
+#define ABORT_OPERATION_CMD (0x33)   // abort()
 
 // Session timeout values during Applet upgrade
 #define SMALLEST_SESSION_TIMEOUT (0)       // 0 msec, during actual upgrade process
@@ -96,7 +96,7 @@ class SBAccessController {
 
     IntervalTimer mTimer;        // track Applet upgrade progress
     IntervalTimer mTimerCrypto;  // track crypto operations
-    void StartTimer(bool isStart, IntervalTimer& t, int timeout,
+    void startTimer(bool isStart, IntervalTimer& t, int timeout,
                     void (*timerFunc)(union sigval arg));
 };
 }  // namespace se_transport

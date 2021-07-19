@@ -117,10 +117,10 @@ bool SBAccessController::isOperationAllowed(uint8_t cmdIns) {
     bool op_allowed = false;
     if (g_AccessAllowed) {
         op_allowed = true;
-        if (cmdIns == INS_BEGIN_OPERATION_CMD) {
+        if (cmdIns == BEGIN_OPERATION_CMD) {
             g_IsCryptoOperationRunning = true;
             startTimer(true, mTimerCrypto, CRYPTO_OP_SESSION_TIMEOUT, CryptoOpTimerFunc);
-        } else if (cmdIns == INS_FINISH_OPERATION_CMD || cmdIns == INS_ABORT_OPERATION_CMD) {
+        } else if (cmdIns == FINISH_OPERATION_CMD || cmdIns == ABORT_OPERATION_CMD) {
             g_IsCryptoOperationRunning = false;
             startTimer(false, mTimerCrypto, 0, nullptr);
         }
@@ -138,7 +138,7 @@ bool SBAccessController::isOperationAllowed(uint8_t cmdIns) {
                 break;
         }
     }
-    if (cmdIns == INS_EARLY_BOOT_ENDED) {
+    if (cmdIns == EARLY_BOOT_ENDED_CMD) {
         // allowed as this is sent by VOLD only during early boot
         op_allowed = true;
         mBootState = BOOTSTATE::SB_EARLY_BOOT_ENDED;
