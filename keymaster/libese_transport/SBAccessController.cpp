@@ -42,11 +42,13 @@ std::map<uint8_t, uint8_t> allowedCmdIns = {{0x09 /*INS_SET_VERSION_PATCHLEVEL*/
 
 static void CryptoOpTimerFunc(union sigval arg) {
     (void)arg;  // unused
+    LOG(DEBUG) << "CryptoOperation timer expired";
     g_IsCryptoOperationRunning = false;
 }
 
 static void AccessTimerFunc(union sigval arg) {
     (void)arg;  // unused
+    LOG(DEBUG) << "Applet access-block timer expired";
     g_AccessAllowed = true;
 }
 

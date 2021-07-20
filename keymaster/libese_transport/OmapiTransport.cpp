@@ -59,7 +59,6 @@ bool OmapiTransport::openConnection() {
 bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) {
     bool status = false;
     std::vector<uint8_t> cApdu(inData, inData+inLen);
-    LOGD_OMAPI("Enter");
 #ifdef INTERVAL_TIMER
      LOGD_OMAPI("stop the timer");
      mTimer.kill();
@@ -81,8 +80,13 @@ bool OmapiTransport::sendData(const uint8_t* inData, const size_t inLen, std::ve
         return mAppletConnection.close();
     }
 #ifdef INTERVAL_TIMER
-     LOGD_OMAPI("Set the timer");
-     mTimer.set(mAppletConnection.getSessionTimeout(), this, SessionTimerFunc);
+     int timeout = mAppletConnection.getSessionTimeout();
+     if(timeout == 0) {
+       closeConnection(); //close immediately
+     } else {
+       LOGD_OMAPI("Set the timer with timeout " << timeout << " ms");
+       mTimer.set(mAppletConnection.getSessionTimeout(), this, SessionTimerFunc);
+     }
 #endif
     return status;
 }

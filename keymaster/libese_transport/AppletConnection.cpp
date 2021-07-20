@@ -137,7 +137,11 @@ bool AppletConnection::selectSBApplet(std::vector<uint8_t>& resp, uint8_t p2) {
       });
   return stat;
 }
-
+void prepareErrorRepsponse(std::vector<uint8_t>& resp){
+        resp.clear();
+        resp.push_back(0xFF);
+        resp.push_back(0xFF);
+}
 bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
   bool ret = false;
   uint8_t retry = 0;
@@ -153,7 +157,10 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
     LOG(INFO) << "channel Already opened";
     return true;
   }
-  if (!mSBAccessController.isSelectAllowed()) return ret;
+  if (!mSBAccessController.isSelectAllowed()) {
+        prepareErrorRepsponse(resp);
+        return false;
+  }
   do {
     if (selectSBApplet(resp, SELECT_P2_VALUE_0) || selectSBApplet(resp, SELECT_P2_VALUE_2)) {
       ret = true;
@@ -172,13 +179,11 @@ bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<
     LOGD_OMAPI("Channel number " << ::android::hardware::toString(mOpenChannel));
 
     if (mSEClient == nullptr) return false;
-
     if (!mSBAccessController.isOperationAllowed(CommandApdu[APDU_INS_OFFSET])) {
-        LOG(ERROR) << "command Ins:" << android::hardware::toString(CommandApdu[APDU_INS_OFFSET])
-                   << " not allowed";
-        output.clear();
-        output.push_back(0xFF);
-        output.push_back(0xFF);
+        std::vector<uint8_t> ins;
+        ins.push_back(CommandApdu[APDU_INS_OFFSET]);
+        LOG(ERROR) << "command Ins:" << ins << " not allowed";
+        prepareErrorRepsponse(output);
         return false;
     }
     // block any fatal signal delivery
