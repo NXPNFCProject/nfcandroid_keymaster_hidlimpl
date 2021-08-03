@@ -96,7 +96,7 @@ public:
   /**
    * Select applet with given P2 parameter
    */
-  bool selectSBApplet(std::vector<uint8_t>& resp, uint8_t p2);
+  bool selectApplet(std::vector<uint8_t>& resp, uint8_t p2);
 
   std::mutex channel_mutex_;  // exclusive access to isChannelopen()/close()
   sp<ISecureElement> mSEClient;

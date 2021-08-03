@@ -54,6 +54,9 @@ using android::base::StringPrintf;
 
 namespace se_transport {
 
+static bool isStrongBox = false; // true when linked with StrongBox HAL process
+const std::vector<uint8_t> kStrongBoxAppletAID = {0xA0, 0x00, 0x00, 0x00, 0x62};
+
 class SecureElementCallback : public ISecureElementHalCallback {
  public:
     Return<void> onStateChange(bool state) override {
@@ -86,7 +89,11 @@ class SEDeathRecipient : public android::hardware::hidl_death_recipient {
 
 sp<SEDeathRecipient> mSEDeathRecipient = nullptr;
 
-AppletConnection::AppletConnection(const std::vector<uint8_t>& aid) : kAppletAID(aid) {}
+AppletConnection::AppletConnection(const std::vector<uint8_t>& aid) : kAppletAID(aid) {
+    if (kAppletAID == kStrongBoxAppletAID) {
+        isStrongBox = true;
+    }
+}
 
 bool AppletConnection::connectToSEService() {
     if (!SignalHandler::getInstance()->isHandlerRegistered()) {
@@ -121,7 +128,7 @@ bool AppletConnection::connectToSEService() {
     return status;
 }
 
-bool AppletConnection::selectSBApplet(std::vector<uint8_t>& resp, uint8_t p2) {
+bool AppletConnection::selectApplet(std::vector<uint8_t>& resp, uint8_t p2) {
   bool stat = false;
   mSEClient->openLogicalChannel(
       kAppletAID, p2, [&](LogicalChannelResponse selectResponse, SecureElementStatus status) {
@@ -157,18 +164,22 @@ bool AppletConnection::openChannelToApplet(std::vector<uint8_t>& resp) {
     LOG(INFO) << "channel Already opened";
     return true;
   }
-  if (!mSBAccessController.isSelectAllowed()) {
-        prepareErrorRepsponse(resp);
-        return false;
+  if (isStrongBox) {
+      if (!mSBAccessController.isSelectAllowed()) {
+          prepareErrorRepsponse(resp);
+          return false;
+      }
+      do {
+          if (selectApplet(resp, SELECT_P2_VALUE_0) || selectApplet(resp, SELECT_P2_VALUE_2)) {
+              ret = true;
+              break;
+          }
+          LOG(INFO) << " openChannelToApplet retry after 2 secs";
+          usleep(2 * ONE_SEC);
+      } while (++retry < MAX_RETRY_COUNT);
+  } else {
+      ret = selectApplet(resp, 0x0);
   }
-  do {
-    if (selectSBApplet(resp, SELECT_P2_VALUE_0) || selectSBApplet(resp, SELECT_P2_VALUE_2)) {
-      ret = true;
-      break;
-    }
-    LOG(INFO) << " openChannelToApplet retry after 2 secs";
-    usleep(2 * ONE_SEC);
-  } while (++retry < MAX_RETRY_COUNT);
 
   return ret;
 }
@@ -179,12 +190,14 @@ bool AppletConnection::transmit(std::vector<uint8_t>& CommandApdu , std::vector<
     LOGD_OMAPI("Channel number " << ::android::hardware::toString(mOpenChannel));
 
     if (mSEClient == nullptr) return false;
-    if (!mSBAccessController.isOperationAllowed(CommandApdu[APDU_INS_OFFSET])) {
-        std::vector<uint8_t> ins;
-        ins.push_back(CommandApdu[APDU_INS_OFFSET]);
-        LOG(ERROR) << "command Ins:" << ins << " not allowed";
-        prepareErrorRepsponse(output);
-        return false;
+    if (isStrongBox) {
+        if (!mSBAccessController.isOperationAllowed(CommandApdu[APDU_INS_OFFSET])) {
+            std::vector<uint8_t> ins;
+            ins.push_back(CommandApdu[APDU_INS_OFFSET]);
+            LOG(ERROR) << "command Ins:" << ins << " not allowed";
+            prepareErrorRepsponse(output);
+            return false;
+        }
     }
     // block any fatal signal delivery
     SignalHandler::getInstance()->blockSignals();
