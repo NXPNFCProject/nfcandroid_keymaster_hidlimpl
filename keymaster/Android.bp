@@ -104,13 +104,4 @@ cc_binary {
         "libese_transport"
     ],
 
-    required: [
-       "android.hardware.strongbox_keystore.xml",
-    ]
-}
-prebuilt_etc {
-    name: "android.hardware.strongbox_keystore.xml",
-    sub_dir: "permissions",
-    vendor: true,
-    src: "android.hardware.strongbox_keystore.xml",
 }
