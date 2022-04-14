@@ -45,7 +45,7 @@ int main() {
     LOG(INFO) << "Register service for StrongBox JavacardKeymaster 4.1 ";
     auto status = keymaster->registerAsService("strongbox");
     if (status != android::OK) {
-        LOG(FATAL) << "Could not register service for Keymaster 4.1 (" << status << ")";
+        LOG(FATAL) << "Could not register service for Javacard Keymaster 4.1 (" << status << ")";
         return -1;
     }
 

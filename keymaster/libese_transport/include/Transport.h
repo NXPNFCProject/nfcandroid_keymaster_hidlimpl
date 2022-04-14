@@ -106,7 +106,7 @@ private:
 class SocketTransport : public ITransport {
 
 public:
-    SocketTransport() : mSocket(-1), socketStatus(false) {
+    SocketTransport() : mSocket(-1), mSocketStatus(false) {
     }
     /**
      * Creates a socket instance and connects to the provided server IP and port.
@@ -130,7 +130,7 @@ private:
      * Socket instance.
      */
     int mSocket;
-    bool socketStatus;
+    bool mSocketStatus;
 
 };
 #endif // NXP_EXTNS

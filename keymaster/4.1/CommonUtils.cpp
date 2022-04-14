@@ -232,7 +232,7 @@ pubModulus) {
         return legacy_enum_conversion(TranslateLastOpenSslError());
     }
 
-    RSA_Ptr rsa_key(EVP_PKEY_get1_RSA(pkey));
+    UniquePtr<RSA, RSA_Delete> rsa_key(EVP_PKEY_get1_RSA(pkey));
     if(!rsa_key.get()) {
         return legacy_enum_conversion(TranslateLastOpenSslError());
     }
