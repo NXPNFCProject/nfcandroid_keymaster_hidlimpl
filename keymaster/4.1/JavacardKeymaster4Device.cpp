@@ -627,19 +627,14 @@ Return<void> JavacardKeymaster4Device::importKey(const hidl_vec<KeyParameter>& k
     cppbor::Array subArray;
 
     if(keyFormat != KeyFormat::PKCS8 && keyFormat != KeyFormat::RAW) {
+        LOG(ERROR) << "INS_IMPORT_KEY_CMD unsupported key format " << (int32_t)keyFormat;
         _hidl_cb(ErrorCode::UNSUPPORTED_KEY_FORMAT, keyBlob, keyCharacteristics);
         return Void();
     }
     cborConverter_.addKeyparameters(array, keyParams);
-    array.add(static_cast<uint32_t>(KeyFormat::RAW)); //javacard accepts only RAW.
-    if(ErrorCode::OK != (errorCode = prepareCborArrayFromKeyData(keyParams, keyFormat, keyData, subArray))) {
-        _hidl_cb(errorCode, keyBlob, keyCharacteristics);
-        return Void();
-    }
-    std::vector<uint8_t> encodedArray = subArray.encode();
-    cppbor::Bstr bstr(encodedArray.begin(), encodedArray.end());
-    array.add(bstr);
+    array.add(static_cast<uint32_t>(keyFormat));
 
+    array.add(std::vector<uint8_t>(keyData));
     std::vector<uint8_t> cborData = array.encode();
 
     errorCode = sendData(Instruction::INS_IMPORT_KEY_CMD, cborData, cborOutData);
@@ -656,6 +651,7 @@ Return<void> JavacardKeymaster4Device::importKey(const hidl_vec<KeyParameter>& k
                 keyCharacteristics.softwareEnforced.setToExternal(nullptr, 0);
                 keyCharacteristics.hardwareEnforced.setToExternal(nullptr, 0);
                 errorCode = ErrorCode::UNKNOWN_ERROR;
+                LOG(ERROR) << "INS_IMPORT_KEY_CMD: error while converting cbor data, status: " << (int32_t) errorCode;
             }
         }
     }
