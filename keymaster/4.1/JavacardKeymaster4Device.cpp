@@ -422,11 +422,13 @@ JavacardKeymaster4Device::JavacardKeymaster4Device(): softKm_(new ::keymaster::A
             context->SetSystemVersion(GetOsVersion(), GetOsPatchlevel());
             return context;
             }(),
-            kOperationTableSize)), oprCtx_(new OperationContext()), isEachSystemPropertySet(false) {
+            kOperationTableSize, keymaster::MessageVersion(keymaster::KmVersion::KEYMASTER_4_1,
+                                0 /* km_date */) )), oprCtx_(new OperationContext()), isEachSystemPropertySet(false) {
     // Send Android system properties like os_version, os_patchlevel and vendor_patchlevel
     // to the Applet. Incase if setting system properties fails here, again try setting
     // it from computeSharedHmac.
     if (ErrorCode::OK == setAndroidSystemProperties()) {
+        LOG(ERROR) << "javacard strongbox : setAndroidSystemProperties from constructor - successful";
         isEachSystemPropertySet = true;
     }
 
@@ -454,6 +456,7 @@ Return<void> JavacardKeymaster4Device::getHardwareInfo(getHardwareInfo_cb _hidl_
             if(!cborConverter_.getUint64(item, 0, securityLevel) ||
                     !cborConverter_.getBinaryArray(item, 1, jcKeymasterName) ||
                     !cborConverter_.getBinaryArray(item, 2, jcKeymasterAuthor)) {
+                LOG(ERROR) << "Failed to convert cbor data of INS_GET_HW_INFO_CMD";
                 _hidl_cb(static_cast<SecurityLevel>(securityLevel), jcKeymasterName, jcKeymasterAuthor);
                 return Void();
             }
@@ -463,7 +466,7 @@ Return<void> JavacardKeymaster4Device::getHardwareInfo(getHardwareInfo_cb _hidl_
     } else {
         // It should not come here, but incase if for any reason SB keymaster fails to getHardwareInfo
         // return proper values from HAL.
-        LOG(ERROR) << "Failed to fetch getHardwareInfo from javacard";
+        LOG(ERROR) << "Failed to fetch getHardwareInfo from javacard returning fixed values from HAL itself";
         _hidl_cb(SecurityLevel::STRONGBOX, JAVACARD_KEYMASTER_NAME, JAVACARD_KEYMASTER_AUTHOR);
         return Void();
     }
@@ -496,24 +499,12 @@ Return<void> JavacardKeymaster4Device::getHmacSharingParameters(getHmacSharingPa
                 true);
         if (item != nullptr) {
             if(!cborConverter_.getHmacSharingParameters(item, 1, hmacSharingParameters)) {
+                LOG(ERROR) << "javacard strongbox : Failed to convert cbor data of INS_GET_HMAC_SHARING_PARAM_CMD";
                 errorCode = ErrorCode::UNKNOWN_ERROR;
             }
         }
+        LOGD_JC("javacard strongbox : received getHmacSharingParameter from Javacard - successful");
     }
-#ifdef VTS_EMULATOR
-    /* TODO temporary fix: vold daemon calls performHmacKeyAgreement. At that time when vold calls this API there is no
-     * network connectivity and socket cannot be connected. So as a hack we are calling softkeymaster to getHmacSharing
-     * parameters.
-     */
-    else {
-        auto response = softKm_->GetHmacSharingParameters();
-        hmacSharingParameters.seed.setToExternal(const_cast<uint8_t*>(response.params.seed.data),
-                response.params.seed.data_length);
-        static_assert(sizeof(response.params.nonce) == hmacSharingParameters.nonce.size(), "Nonce sizes don't match");
-        memcpy(hmacSharingParameters.nonce.data(), response.params.nonce, hmacSharingParameters.nonce.size());
-        errorCode = legacy_enum_conversion(response.error);
-    }
-#endif
     _hidl_cb(errorCode, hmacSharingParameters);
     return Void();
 }
@@ -566,29 +557,9 @@ Return<void> JavacardKeymaster4Device::computeSharedHmac(const hidl_vec<HmacShar
             }
         }
     }
-#ifdef VTS_EMULATOR
-    /* TODO temporary fix: vold daemon calls performHmacKeyAgreement. At that time when vold calls this API there is no
-     * network connectivity and socket cannot be connected. So as a hack we are calling softkeymaster to
-     * computeSharedHmac.
-     */
-    else {
-        ComputeSharedHmacRequest request(softKm_->message_version());
-        request.params_array.params_array = new keymaster::HmacSharingParameters[params.size()];
-        request.params_array.num_params = params.size();
-        for (size_t i = 0; i < params.size(); ++i) {
-            request.params_array.params_array[i].seed = {params[i].seed.data(), params[i].seed.size()};
-            static_assert(sizeof(request.params_array.params_array[i].nonce) ==
-                    decltype(params[i].nonce)::size(),
-                    "Nonce sizes don't match");
-            memcpy(request.params_array.params_array[i].nonce, params[i].nonce.data(),
-                    params[i].nonce.size());
-        }
 
-        auto response = softKm_->ComputeSharedHmac(request);
-        if (response.error == KM_ERROR_OK) sharingCheck = kmBlob2hidlVec(response.sharing_check);
-        errorCode = legacy_enum_conversion(response.error);
-    }
-#endif
+    LOGD_JC("javacard strongbox : computeSharedHmac - sending sharingCheckToKeystore");
+
     _hidl_cb(errorCode, sharingCheck);
     return Void();
  }

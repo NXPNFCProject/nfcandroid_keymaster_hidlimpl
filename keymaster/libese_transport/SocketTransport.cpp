@@ -72,14 +72,14 @@ bool SocketTransport::openConnection() {
         LOG(ERROR) << "Connection failed. Error: " << strerror(errno);
         return false;
     }
-    socketStatus = true;
+    mSocketStatus = true;
     return true;
 }
 
 bool SocketTransport::sendData(const uint8_t* inData, const size_t inLen, std::vector<uint8_t>& output) {
     uint8_t buffer[MAX_RECV_BUFFER_SIZE];
     int count = 1;
-    while(!socketStatus && count++ < 5 ) {
+    while(!mSocketStatus && count++ < 5 ) {
         sleep(1);
         LOG(ERROR) << "Trying to open socket connection... count: " << count;
         openConnection();
@@ -107,13 +107,13 @@ bool SocketTransport::sendData(const uint8_t* inData, const size_t inLen, std::v
 
 bool SocketTransport::closeConnection() {
     close(mSocket);
-    socketStatus = false;
+    mSocketStatus = false;
     return true;
 }
 
 bool SocketTransport::isConnected() {
     //TODO
-    return socketStatus;
+    return mSocketStatus;
 }
 
 } // namespace se_transport

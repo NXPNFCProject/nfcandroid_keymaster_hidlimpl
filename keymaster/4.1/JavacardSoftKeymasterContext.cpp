@@ -53,15 +53,8 @@ using ::keymaster::V4_1::javacard::KmParamSet;
 
 namespace keymaster {
 
-JavaCardSoftKeymasterContext::JavaCardSoftKeymasterContext(
-    keymaster_security_level_t security_level)
-#ifdef NXP_EXTNS
-    : PureSoftKeymasterContext(KmVersion::KEYMASTER_4_1, security_level) {
-}
-#else
-    : PureSoftKeymasterContext(security_level) {
-}
-#endif
+JavaCardSoftKeymasterContext::JavaCardSoftKeymasterContext(keymaster_security_level_t security_level)
+    : PureSoftKeymasterContext(KmVersion::KEYMASTER_4_1, security_level) {}
 
 JavaCardSoftKeymasterContext::~JavaCardSoftKeymasterContext() {}
 
