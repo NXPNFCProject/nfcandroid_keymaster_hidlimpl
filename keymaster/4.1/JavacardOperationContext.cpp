@@ -44,12 +44,7 @@
 #endif
 
 #define MAX_ALLOWED_INPUT_SIZE 256
-#ifdef NXP_EXTNS
-#define AES_BLOCK_SIZE         256
-#define AES_BLOCK_SIZE_DEFAULT  16
-#else
 #define AES_BLOCK_SIZE          16
-#endif
 #define DES_BLOCK_SIZE           8
 #define RSA_INPUT_MSG_LEN      256
 #define EC_INPUT_MSG_LEN        32
@@ -273,17 +268,7 @@ ErrorCode OperationContext::bufferData(uint64_t operHandle, std::vector<uint8_t>
 
     LOGD_JC("operationHandle:" << operHandle);
     if(Algorithm::AES == operationTable[operHandle].info.alg) {
-#ifdef NXP_EXTNS
-        // PKCS7 padding mode or tag data for AES GCM operation are coded in the last 16 bytes of
-        // ciphertext. Use default block size(16 bytes) so that padding/tag-data is always  sent in
-        // last block during finish operation
-        if ((operationTable[operHandle].info.mode == BlockMode::GCM) ||
-            ((operationTable[operHandle].info.pad == PaddingMode::PKCS7) &&
-             (operationTable[operHandle].info.purpose == KeyPurpose::DECRYPT))) {
-            blockSize = AES_BLOCK_SIZE_DEFAULT;
-        } else
-#endif
-            blockSize = AES_BLOCK_SIZE;
+        blockSize = AES_BLOCK_SIZE;
     } else if(Algorithm::TRIPLE_DES == operationTable[operHandle].info.alg) {
         blockSize = DES_BLOCK_SIZE;
     } else {
