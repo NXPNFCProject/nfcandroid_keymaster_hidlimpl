@@ -41,15 +41,17 @@
 #define LOG_TAG "OperationContext"
 #include <CommonUtils.h>
 #include <android-base/logging.h>
+#include <android-base/properties.h>
+#include <string>
+
+#ifndef __ANDROID_API_T__
+#define __ANDROID_API_T__ 33
+#endif
+
 #endif
 
 #define MAX_ALLOWED_INPUT_SIZE 256
-#ifdef NXP_EXTNS
-#define AES_BLOCK_SIZE         256
-#define AES_BLOCK_SIZE_DEFAULT  16
-#else
 #define AES_BLOCK_SIZE          16
-#endif
 #define DES_BLOCK_SIZE           8
 #define RSA_INPUT_MSG_LEN      256
 #define EC_INPUT_MSG_LEN        32
@@ -90,7 +92,18 @@ inline ErrorCode hidlParamSet2OperatinInfo(const hidl_vec<KeyParameter>& params,
     }
     return ErrorCode::OK;
 }
-
+#ifdef NXP_EXTNS
+OperationContext::OperationContext() {
+    std::string prop_value;
+    const char* prop = "ro.build.version.codename";
+    isAtLeastAndroidT = false;  // default value
+    android::base::WaitForPropertyCreation(prop);
+    prop_value = android::base::GetProperty(prop, "" /* default */);
+    isAtLeastAndroidT =
+        android_get_device_api_level() >= __ANDROID_API_T__ || !prop_value.compare("Tiramisu");
+    LOGD_JC("isAtleastAndroidT=" << isAtLeastAndroidT);
+}
+#endif
 ErrorCode OperationContext::setOperationInfo(uint64_t operationHandle, KeyPurpose purpose, Algorithm alg,
         const hidl_vec<KeyParameter>& params) {
     ErrorCode errorCode = ErrorCode::OK;
@@ -273,17 +286,7 @@ ErrorCode OperationContext::bufferData(uint64_t operHandle, std::vector<uint8_t>
 
     LOGD_JC("operationHandle:" << operHandle);
     if(Algorithm::AES == operationTable[operHandle].info.alg) {
-#ifdef NXP_EXTNS
-        // PKCS7 padding mode or tag data for AES GCM operation are coded in the last 16 bytes of
-        // ciphertext. Use default block size(16 bytes) so that padding/tag-data is always  sent in
-        // last block during finish operation
-        if ((operationTable[operHandle].info.mode == BlockMode::GCM) ||
-            ((operationTable[operHandle].info.pad == PaddingMode::PKCS7) &&
-             (operationTable[operHandle].info.purpose == KeyPurpose::DECRYPT))) {
-            blockSize = AES_BLOCK_SIZE_DEFAULT;
-        } else
-#endif
-            blockSize = AES_BLOCK_SIZE;
+        blockSize = AES_BLOCK_SIZE;
     } else if(Algorithm::TRIPLE_DES == operationTable[operHandle].info.alg) {
         blockSize = DES_BLOCK_SIZE;
     } else {
@@ -321,8 +324,27 @@ ErrorCode OperationContext::bufferData(uint64_t operHandle, std::vector<uint8_t>
                 dataToSELen = (data.buf_len + input.size()) - operationTable[operHandle].info.macLength;
             }
         } else {
+#ifdef NXP_EXTNS
+            if (isAtLeastAndroidT) {
+                /* No Buffering */
+                dataToSELen = input.size();
+            } else {
+                // Only blockAligned size data to be sent to eSE. Remaining data is buffered.
+                // block size is increased to 256 Bytes to reduce no. of calls towards eSE
+                if (Algorithm::AES == operationTable[operHandle].info.alg) {
+                    blockSize = 256;
+                    if (operationTable[operHandle].info.mode == BlockMode::GCM)
+                        blockSize = AES_BLOCK_SIZE;
+
+                    dataToSELen = ((data.buf_len + input.size()) / blockSize) * blockSize;
+                } else {
+                    dataToSELen = input.size();
+                }
+            }
+#else
             /* No Buffering */
             dataToSELen = input.size();
+#endif
         }
         //Copy data to be send to SE from buffer, only if atleast a minimum block aligned size is available.
         if(dataToSELen > 0) {

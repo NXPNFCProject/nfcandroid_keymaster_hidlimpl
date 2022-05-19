@@ -14,6 +14,25 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+/******************************************************************************
+ *
+ *  The original Work has been changed by NXP.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  Copyright 2022 NXP
+ *
+ **********************************************************************************/
 
 #ifndef KEYMASTER_V4_1_JAVACARD_OPERATIONCONTEXT_H_
 #define KEYMASTER_V4_1_JAVACARD_OPERATIONCONTEXT_H_
@@ -92,7 +111,11 @@ struct OperationData {
 class OperationContext {
 
 public:
+#ifdef NXP_EXTNS
+    OperationContext();
+#else
     OperationContext(){}
+#endif
     ~OperationContext() {}
     /**
      * In Begin operation caller has to call this function to store the operation data corresponding to the operation
@@ -121,6 +144,11 @@ private:
      * is OperationData.
      */
     std::map<uint64_t, OperationData> operationTable;
+
+    /**
+     * Flag to indicate if current system image version is at least Android 13
+     */
+    bool isAtLeastAndroidT;
 
     /* Helper functions */
 
