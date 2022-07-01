@@ -100,6 +100,10 @@ ErrorCode OperationContext::setOperationInfo(uint64_t operationHandle, KeyPurpos
     return ErrorCode::OK;
 }
 
+OperationInfo OperationContext::getOperationInfo(uint64_t operationHandle) {
+    return operationTable[operationHandle].info;
+}
+
 ErrorCode OperationContext::clearOperationData(uint64_t operHandle) {
     LOGD_JC("operationHandle:" << operHandle);
     size_t size = operationTable.erase(operHandle);
@@ -359,6 +363,10 @@ ErrorCode OperationContext::handleInternalUpdate(uint64_t operHandle, std::vecto
         if(ErrorCode::OK != (errorCode = bufferData(operHandle, data,
                         opr, out))) {
             return errorCode;
+        }
+        if (!finish && out.size() > 0) {
+            // update() has received/processed input data of atleast 1 byte
+            operationTable[operHandle].info.inputProcessed = true;
         }
         //Call the callback under these condition
         //1. if it is a finish operation.

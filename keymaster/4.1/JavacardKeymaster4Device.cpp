@@ -1351,6 +1351,17 @@ Return<void> JavacardKeymaster4Device::finish(uint64_t operationHandle, const hi
                     }
                 }
             }
+            if (errorCode == ErrorCode::INVALID_INPUT_LENGTH) {
+                if (data.size() == 0 && finish) {
+                    OperationInfo opInfo = oprCtx_->getOperationInfo(operationHandle);
+                    if ((opInfo.alg == Algorithm::AES || opInfo.alg == Algorithm::TRIPLE_DES) &&
+                        opInfo.inputProcessed == false && opInfo.pad == PaddingMode::NONE &&
+                        opInfo.mode != BlockMode::GCM) {
+                        errorCode = ErrorCode::OK;
+                        tempOut.clear();
+                    }
+                }
+            }
             return errorCode;
         };
         if(ErrorCode::OK == (errorCode = oprCtx_->finish(operationHandle, std::vector<uint8_t>(input),
