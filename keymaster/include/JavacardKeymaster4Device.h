@@ -14,7 +14,25 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
-
+/******************************************************************************
+ *
+ *  The original Work has been changed by NXP.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  Copyright 2022 NXP
+ *
+ ******************************************************************************/
 #ifndef KEYMASTER_V4_1_JAVACARD_JAVACARDKEYMASTER4DEVICE_H_
 #define KEYMASTER_V4_1_JAVACARD_JAVACARDKEYMASTER4DEVICE_H_
 
@@ -43,6 +61,7 @@ using ::android::hardware::hidl_string;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
 
+using android::hardware::hidl_handle;
 using ::android::hardware::keymaster::V4_0::ErrorCode;
 using ::android::hardware::keymaster::V4_0::HardwareAuthenticatorType;
 using ::android::hardware::keymaster::V4_0::HardwareAuthToken;
@@ -53,10 +72,9 @@ using ::android::hardware::keymaster::V4_0::KeyParameter;
 using ::android::hardware::keymaster::V4_0::KeyPurpose;
 using ::android::hardware::keymaster::V4_0::OperationHandle;
 using ::android::hardware::keymaster::V4_0::SecurityLevel;
+using ::android::hardware::keymaster::V4_0::Tag;
 using ::android::hardware::keymaster::V4_0::VerificationToken;
 using ::android::hardware::keymaster::V4_1::IKeymasterDevice;
-using ::android::hardware::keymaster::V4_0::Tag;
-
 using V41ErrorCode = ::android::hardware::keymaster::V4_1::ErrorCode;
 
 enum class OperationType {
@@ -98,6 +116,8 @@ class JavacardKeymaster4Device : public IKeymasterDevice {
   public:
     JavacardKeymaster4Device();
     virtual ~JavacardKeymaster4Device();
+    // Methods from ::android::hidl::base::V1_0::IBase follow.
+    Return<void> debug(const hidl_handle& handle, const hidl_vec<hidl_string>& options) override;
 
     // Methods from ::android::hardware::keymaster::V4_0::IKeymasterDevice follow.
     Return<void> getHardwareInfo(getHardwareInfo_cb _hidl_cb) override;
