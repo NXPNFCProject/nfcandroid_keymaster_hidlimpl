@@ -45,14 +45,15 @@
 #include <keymaster/km_openssl/openssl_utils.h>
 #include <openssl/aes.h>
 
+#include <CommonUtils.h>
 #include <JavacardKeymaster4Device.h>
 #include <JavacardSoftKeymasterContext.h>
-#include <CommonUtils.h>
 #include <android-base/logging.h>
+#include <memunreachable/memunreachable.h>
+#include <openssl/asn1.h>
+#include <openssl/bio.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include <openssl/bio.h>
-#include <openssl/asn1.h>
 
 #define JAVACARD_KEYMASTER_NAME      "JavacardKeymaster4.1Device v1.0"
 #define JAVACARD_KEYMASTER_AUTHOR    "Android Open Source Project"
@@ -1498,6 +1499,13 @@ Return<::android::hardware::keymaster::V4_1::ErrorCode> JavacardKeymaster4Device
         isEarlyBootEventPending = true;
     }
     return errorCode;
+}
+
+Return<void> JavacardKeymaster4Device::debug(const hidl_handle& /* fd */,
+                                             const hidl_vec<hidl_string>& /* options */) {
+    LOG(INFO) << "\n KeyMaster-JavacardKeymaster4Device HAL MemoryLeak Info = \n"
+              << ::android::GetUnreachableMemoryString(true, 10000).c_str();
+    return Void();
 }
 
 }  // javacard
