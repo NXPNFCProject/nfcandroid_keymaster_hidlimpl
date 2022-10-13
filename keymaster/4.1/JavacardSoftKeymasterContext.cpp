@@ -29,7 +29,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  Copyright 2020-2021 NXP
+ *  Copyright 2020-2022 NXP
  *
  **********************************************************************************/
 
@@ -159,11 +159,11 @@ keymaster_error_t JavaCardSoftKeymasterContext::LoadKey(const keymaster_algorith
         return TranslateLastOpenSslError();
     UniquePtr<EVP_PKEY, EVP_PKEY_Delete> pkey_deleter(pkey);
 
-    error = factory->CreateEmptyKey(move(hw_enforced), move(sw_enforced), &asym_key);
+    error = factory->CreateEmptyKey(std::move(hw_enforced), std::move(sw_enforced), &asym_key);
     if (error != KM_ERROR_OK)
         return error;
 
-    asym_key->key_material() = move(key_material);
+    asym_key->key_material() = std::move(key_material);
     if (!asym_key->EvpToInternal(pkey))
         error = TranslateLastOpenSslError();
     else
@@ -201,8 +201,8 @@ keymaster_error_t JavaCardSoftKeymasterContext::ParseKeyBlob(const KeymasterKeyB
         if (algorithm != KM_ALGORITHM_RSA && algorithm != KM_ALGORITHM_EC) {
             return KM_ERROR_INCOMPATIBLE_ALGORITHM;
         }
-        error = LoadKey(algorithm, move(key_material), move(hw_enforced),
-                                move(sw_enforced), key);
+        error = LoadKey(algorithm, std::move(key_material), std::move(hw_enforced),
+                                std::move(sw_enforced), key);
         return error;
     };
 
